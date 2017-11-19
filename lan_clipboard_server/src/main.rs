@@ -32,10 +32,18 @@ fn main() {
       }
     };
 
+    let address = match connection.peer_addr() {
+      Ok(a) => a,
+      Err(e) => {
+        println!("could not get peer address: {}", e);
+        continue;
+      }
+    };
+
     let t_state = state.clone();
     std::thread::spawn(move || {
       loop {
-        let mut message: Message = match connection.read_message() {
+        let message: Message = match connection.read_message() {
           Ok(m) => m,
           Err(MessageError::Io(e)) => {
             println!("could not read from connection: {}\nclosing stream", e);
@@ -47,67 +55,14 @@ fn main() {
           }
         };
         match message.get_field_type() {
-          Message_MessageType::HELLO => {
-            if !message.has_hello() {
-              println!("message was supposed to have a Hello, but it did not");
-              continue;
-            }
-            let mut hello = message.take_hello();
-
-            {
-              let state = t_state.read().unwrap();
-              if state.node_tree.name_used(hello.get_name()) {
-                let mut r = Rejected::new();
-                r.set_reason(Rejected_RejectionReason::BAD_NAME);
-                connection.write_message(&r.into()).ok();
-                continue;
-              }
-            }
-            {
-              // make node here to ensure no id conflicts
-              let mut state = t_state.write().unwrap();
-              let id = state.node_tree.next_id();
-              let node = Node {
-                id,
-                address: connection.peer_addr().unwrap(),
-                stream: connection.try_clone().unwrap(),
-                name: hello.take_name()
-              };
-              state.node_tree.push(node);
-              let mut n_tree = lan_clipboard::NodeTree::new();
-              n_tree.set_nodes(state.node_tree.iter().map(|node| (node.id, node.name.clone())).collect());
-              let mut reg: Registered = Registered::new();
-              reg.set_node_id(id);
-              reg.set_num_nodes(state.node_tree.len() as u32);
-              reg.set_tree(n_tree);
-              reg.set_clipboard(state.shared.clone());
-              connection.write_message(&reg.into()).ok();
-            }
-          },
-          Message_MessageType::CLIPBOARD_UPDATE => {
-            if !message.has_clipboard_update() {
-              continue;
-            }
-            let mut cu = message.take_clipboard_update();
-            let new = cu.take_contents();
-            let mut state = t_state.write().unwrap();
-            state.shared = new;
-            println!("new clipboard: {:?}", state.shared);
-            // keep write locked to ensure correct packet ordering
-            let mut update = ClipboardUpdate::new();
-            update.set_contents(state.shared.clone());
-            let m = update.into();
-            for node in state.node_tree.iter_mut() {
-              node.stream.write_message(&m).ok();
-            }
-          },
+          Message_MessageType::HELLO => hello(t_state.clone(), message, &mut connection),
+          Message_MessageType::CLIPBOARD_UPDATE => clipboard_update(t_state.clone(), message),
           _ => println!("received other message not yet supported")
         }
       }
       println!("Stream closing, removing from node tree");
-      let addr = connection.peer_addr().unwrap();
       let mut state = t_state.write().unwrap();
-      if let Some(pos) = state.node_tree.iter().position(|node| node.address == addr) {
+      if let Some(pos) = state.node_tree.iter().position(|node| node.address == address) {
         let node = state.node_tree.remove(pos);
 
         let mut nu = NodeUpdate::new();
@@ -121,6 +76,80 @@ fn main() {
         }
       }
     });
+  }
+}
+
+fn hello(state: Arc<RwLock<State>>, mut message: Message, connection: &mut TcpStream) {
+  if !message.has_hello() {
+    return;
+  }
+  let mut hello = message.take_hello();
+
+  {
+    let state = state.read().unwrap();
+    if state.node_tree.name_used(hello.get_name()) {
+      let mut r = Rejected::new();
+      r.set_reason(Rejected_RejectionReason::BAD_NAME);
+      connection.write_message(&r.into()).ok();
+      return;
+    }
+  }
+  {
+    // make node here to ensure no id conflicts
+    let mut state = state.write().unwrap();
+    let id = state.node_tree.next_id();
+    let node = Node {
+      id,
+      address: connection.peer_addr().unwrap(),
+      stream: connection.try_clone().unwrap(),
+      name: hello.take_name()
+    };
+
+    let mut node_update: NodeUpdate = NodeUpdate::new();
+    node_update.set_field_type(NodeUpdate_UpdateType::ADDED);
+    node_update.set_node_id(node.id);
+    node_update.set_node_name(node.name.clone());
+
+    let num = node_update.into();
+
+    for n in state.node_tree.iter_mut() {
+      n.stream.write_message(&num).ok();
+    }
+
+    state.node_tree.push(node);
+
+    let mut n_tree = lan_clipboard::NodeTree::new();
+    n_tree.set_nodes(state.node_tree.iter().map(|node| (node.id, node.name.clone())).collect());
+
+    let mut reg: Registered = Registered::new();
+    reg.set_node_id(id);
+    reg.set_num_nodes(state.node_tree.len() as u32);
+    reg.set_tree(n_tree);
+    reg.set_clipboard(state.shared.clone());
+
+    connection.write_message(&reg.into()).ok();
+  }
+}
+
+fn clipboard_update(state: Arc<RwLock<State>>, mut message: Message) {
+  if !message.has_clipboard_update() {
+    return;
+  }
+
+  let mut cu = message.take_clipboard_update();
+  let new = cu.take_contents();
+
+  let mut state = state.write().unwrap();
+  state.shared = new;
+
+  // keep write locked to ensure correct packet ordering
+  let mut update = ClipboardUpdate::new();
+  update.set_contents(state.shared.clone());
+
+  let m = update.into();
+
+  for node in state.node_tree.iter_mut() {
+    node.stream.write_message(&m).ok();
   }
 }
 
