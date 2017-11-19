@@ -17,15 +17,16 @@ struct State {
 
 fn main() {
   let args: Vec<String> = std::env::args().skip(1).collect();
-  if args.is_empty() {
-    println!("Specify a client name");
+  if args.len() < 2 {
+    println!("Specify a server 'hostname:port' and a client name");
     return;
   }
+  let server = &args[0];
   let name = args.join(" ");
 
   let state = Arc::new(RwLock::new(State::default()));
 
-  let mut connection = TcpStream::connect(("127.0.0.1", 38153)).unwrap();
+  let mut connection = TcpStream::connect(server).unwrap();
 
   let mut hello: Hello = Hello::new();
   hello.set_version(1);
