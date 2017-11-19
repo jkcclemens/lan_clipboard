@@ -60,14 +60,6 @@ fn main() {
       }
     };
 
-    let address = match connection.peer_addr() {
-      Ok(a) => a,
-      Err(e) => {
-        println!("could not get peer address: {}", e);
-        continue;
-      }
-    };
-
     let mut connection = acceptor.accept(connection).expect("could not accept");
 
     let t_state = state.clone();
@@ -113,13 +105,20 @@ fn hello(t_state: Arc<RwLock<State>>, mut message: Message, mut connection: TlsS
       return;
     }
   }
+  let address = match connection.get_ref().peer_addr() {
+    Ok(a) => a,
+    Err(e) => {
+      println!("could not get peer address: {}", e);
+      return;
+    }
+  };
   {
     // make node here to ensure no id conflicts
     let mut state = t_state.write().unwrap();
     let id = state.node_tree.next_id();
     let node = Node {
       id,
-      address: connection.get_ref().peer_addr().unwrap(),
+      address: address,
       stream: Arc::new(Mutex::new(connection)),
       name: hello.take_name()
     };
@@ -177,6 +176,20 @@ fn clipboard_update(state: Arc<RwLock<State>>, mut message: Message) {
   }
 }
 
+fn ping(_state: Arc<RwLock<State>>, mut message: Message, stream: Arc<Mutex<TlsStream<TcpStream>>>) {
+  if !message.has_ping() {
+    return;
+  }
+
+  let ping = message.take_ping();
+  let seq = ping.get_seq();
+
+  let mut pong = Pong::new();
+  pong.set_seq(seq);
+
+  stream.lock().unwrap().write_message(&pong.into()).ok();
+}
+
 #[derive(Debug)]
 struct Node {
   id: u32,
@@ -191,7 +204,7 @@ impl Node {
     let address = self.address.clone();
     std::thread::spawn(move || {
       loop {
-        let mut message: Message = match stream.lock().unwrap().read_message() {
+        let message: Message = match stream.lock().unwrap().read_message() {
           Ok(m) => m,
           Err(MessageError::Io(ref e)) if e.kind() == std::io::ErrorKind::WouldBlock => {
             // epoll?
@@ -206,6 +219,7 @@ impl Node {
 
         match message.get_field_type() {
           Message_MessageType::CLIPBOARD_UPDATE => clipboard_update(t_state.clone(), message),
+          Message_MessageType::PING => ping(t_state.clone(), message, stream.clone()),
           _ => {}
         }
       }

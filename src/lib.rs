@@ -62,3 +62,5 @@ into_msg!(Rejected, REJECTED, set_rejected);
 into_msg!(NodeTree, NODE_TREE, set_node_tree);
 into_msg!(NodeUpdate, NODE_UPDATE, set_node_update);
 into_msg!(ClipboardUpdate, CLIPBOARD_UPDATE, set_clipboard_update);
+into_msg!(Ping, PING, set_ping);
+into_msg!(Pong, PONG, set_pong);

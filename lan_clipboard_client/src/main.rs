@@ -2,10 +2,12 @@ extern crate lan_clipboard;
 extern crate protobuf;
 extern crate clipboard;
 extern crate native_tls;
+extern crate chrono;
 
 use lan_clipboard::*;
 use clipboard::{ClipboardContext, ClipboardProvider};
 use native_tls::{TlsConnector, TlsStream, Certificate};
+use chrono::Utc;
 use std::net::TcpStream;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Mutex};
@@ -77,7 +79,7 @@ fn main() {
   }
   let connector = builder.build().unwrap();
   let connection = TcpStream::connect((hostname.as_str(), port)).unwrap();
-  let mut connection = Arc::new(Mutex::new(connector.connect(hostname, connection).unwrap()));
+  let connection = Arc::new(Mutex::new(connector.connect(hostname, connection).unwrap()));
   connection.lock().unwrap().get_ref().set_nonblocking(true).unwrap();
 
   let mut hello: Hello = Hello::new();
@@ -94,6 +96,7 @@ fn main() {
 
 fn send(state: Arc<RwLock<State>>, stream: Arc<Mutex<TlsStream<TcpStream>>>) {
   let mut ctx = ClipboardContext::new().unwrap();
+  let mut last_ping = (0, Utc::now());
   std::thread::spawn(move || {
     loop {
       std::thread::sleep(std::time::Duration::from_millis(250));
@@ -103,6 +106,14 @@ fn send(state: Arc<RwLock<State>>, stream: Arc<Mutex<TlsStream<TcpStream>>>) {
       };
       if !reg {
         continue;
+      }
+      let now = Utc::now();
+      if now.signed_duration_since(last_ping.1).num_seconds().abs() > 15 {
+        last_ping.1 = now;
+        last_ping.0 = last_ping.0 + 1;
+        let mut ping = Ping::new();
+        ping.set_seq(last_ping.0);
+        stream.lock().unwrap().write_message(&ping.into()).ok();
       }
       let shared = {
         let state = state.read().unwrap();

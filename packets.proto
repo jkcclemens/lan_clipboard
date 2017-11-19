@@ -10,6 +10,8 @@ message Message {
     NODE_TREE = 3;
     NODE_UPDATE = 4;
     CLIPBOARD_UPDATE = 5;
+    PING = 6;
+    PONG = 7;
   }
 
   MessageType type = 1;
@@ -21,6 +23,8 @@ message Message {
     NodeTree node_tree = 5;
     NodeUpdate node_update = 6;
     ClipboardUpdate clipboard_update = 7;
+    Ping ping = 8;
+    Pong pong = 9;
   }
 }
 
@@ -49,6 +53,16 @@ message Hello {
   string name = 2; // the client's name
 }
 
+/*
+* A Ping message is sent by the client on a regular interval to alert the server that the client is
+* still available.
+*
+* A Pong message will be sent by the server in response to a valid Ping message.
+*/
+message Ping {
+  uint32 seq = 1; // the sequence number of this ping/pong
+}
+
 // S -> C
 
 /*
@@ -60,6 +74,13 @@ message Registered {
   uint32 num_nodes = 2; // number of nodes in the tree
   NodeTree tree = 3; // the node tree, updated with this client to be included
   bytes clipboard = 4; // the current shared clipboard
+}
+
+/*
+* A Pong message is sent back to the client after receiving a valid Ping message.
+*/
+message Pong {
+  uint32 seq = 1; // the sequence number of this ping/pong
 }
 
 /*

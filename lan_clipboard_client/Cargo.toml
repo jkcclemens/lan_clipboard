@@ -8,3 +8,4 @@ lan_clipboard = { path = "../" }
 protobuf = "1.4"
 clipboard = "0.4"
 native-tls = "0.1"
+chrono = "0.4"
