@@ -100,7 +100,6 @@ fn receive(state: Arc<RwLock<State>>, mut stream: TcpStream) {
         },
         Message_MessageType::REGISTERED => {
           if !message.has_registered() {
-            println!("message was supposed to have registered, but it didn't");
             continue;
           }
           let mut registered: Registered = message.take_registered();
@@ -108,11 +107,10 @@ fn receive(state: Arc<RwLock<State>>, mut stream: TcpStream) {
           state.registered = true;
           state.tree = registered.take_tree().take_nodes();
           state.shared = registered.get_clipboard().to_vec();
-          println!("Registered as node {} with node tree:\n{:#?}", registered.get_node_id(), registered.get_tree());
+          println!("Registered as node {} with node tree:\n{:#?}", registered.get_node_id(), state.tree);
         },
         Message_MessageType::REJECTED => {
           if !message.has_rejected() {
-            println!("message was supposed to have rejected, but it didn't");
             continue;
           }
           let rejected: Rejected = message.take_rejected();
@@ -121,7 +119,6 @@ fn receive(state: Arc<RwLock<State>>, mut stream: TcpStream) {
         },
         Message_MessageType::NODE_UPDATE => {
           if !message.has_node_update() {
-            println!("message was supposed to have node update, but it didn't");
             continue;
           }
           let node_update: NodeUpdate = message.take_node_update();
