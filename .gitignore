@@ -1,0 +1,5 @@
+/target/
+lan_clipboard_client/target/
+lan_clipboard_server/target/
+**/*.rs.bk
+Cargo.lock

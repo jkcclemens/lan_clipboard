@@ -1,0 +1,9 @@
+[package]
+name = "lan_clipboard_client"
+version = "0.1.0"
+authors = ["Kyle Clemens <jkc.clemens@gmail.com>"]
+
+[dependencies]
+lan_clipboard = { path = "../" }
+protobuf = "1.4"
+clipboard = "0.4"

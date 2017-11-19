@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+// C -> S & S -> C
+
+message Message {
+  enum MessageType {
+    HELLO = 0;
+    REGISTERED = 1;
+    REJECTED = 2;
+    NODE_TREE = 3;
+    NODE_UPDATE = 4;
+    CLIPBOARD_UPDATE = 5;
+  }
+
+  MessageType type = 1;
+
+  oneof value {
+    Hello hello = 2;
+    Registered registered = 3;
+    Rejected rejected = 4;
+    NodeTree node_tree = 5;
+    NodeUpdate node_update = 6;
+    ClipboardUpdate clipboard_update = 7;
+  }
+}
+
+/*
+* A ClipboardUpdate message is sent from both clients and servers.
+*
+* When sent from a server, this message indicates that the client should update its clipboard to
+* contain the contents.
+*
+* When sent from a client, this message indiciates that the server should tell other clients to
+* update their clipboards to contain the contents.
+*/
+message ClipboardUpdate {
+  bytes contents = 1; // the contents of the clipboard
+}
+
+// C -> S
+
+/*
+* A Hello message is sent when the client turns on and attempts to connect to the server.
+*
+* The server will send back either a Registered message or a Rejected message in response.
+*/
+message Hello {
+  uint32 version = 1; // the client's version
+  string name = 2; // the client's name
+}
+
+// S -> C
+
+/*
+* A Registered message is sent when the server receives a Hello message from a client and determines
+* the message to be valid.
+*/
+message Registered {
+  uint32 node_id = 1; // client's node id
+  uint32 num_nodes = 2; // number of nodes in the tree
+  NodeTree tree = 3; // the node tree, updated with this client to be included
+  bytes clipboard = 4; // the current shared clipboard
+}
+
+/*
+* A NodeTree message may be sent as part of the Registered message or on its own.
+*
+* No matter how it is sent, receiving this message indicates that the client should completely
+* replace its node tree with this one.
+*/
+message NodeTree {
+  map<uint32, string> nodes = 1; // each node id mapped to its name
+}
+
+/*
+* A NodeUpdate message is sent by the server whenever a change occurs to the node tree.
+*
+* Upon receiving this message, each client should update its node tree in the manner described by
+* this message.
+*/
+message NodeUpdate {
+  enum UpdateType {
+    ADDED = 0; // the node was added to the tree
+    REMOVED = 1; // the node was removed from the tree
+  }
+
+  UpdateType type = 1; // the type of update this node had
+  uint32 node_id = 2; // the node involved
+  string node_name = 3; // set if this is an add
+}
+
+/*
+* A Rejected message is sent by the server to the client if the server determines the Hello message
+* to be invalid.
+*
+* The client should examine the cause of the rejection and try again.
+*/
+message Rejected {
+  enum RejectionReason {
+    BAD_VERSION = 0; // server is not compatible with the client's version
+    BAD_NAME = 1; // the client's name is already taken
+  }
+
+  RejectionReason reason = 1; // the reason the client was rejected
+}
