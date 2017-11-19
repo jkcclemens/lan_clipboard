@@ -22,7 +22,7 @@ fn main() {
     return;
   }
   let server = &args[0];
-  let name = args.join(" ");
+  let name = args[1..].join(" ");
 
   let state = Arc::new(RwLock::new(State::default()));
 
