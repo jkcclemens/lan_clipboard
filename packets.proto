@@ -99,6 +99,7 @@ message Rejected {
   enum RejectionReason {
     BAD_VERSION = 0; // server is not compatible with the client's version
     BAD_NAME = 1; // the client's name is already taken
+    BAD_MESSAGE = 2; // the client did not send Hello
   }
 
   RejectionReason reason = 1; // the reason the client was rejected

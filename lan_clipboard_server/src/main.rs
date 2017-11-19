@@ -6,7 +6,7 @@ extern crate native_tls;
 use lan_clipboard::*;
 use native_tls::{Pkcs12, TlsAcceptor, TlsStream};
 use std::net::{TcpListener, TcpStream, SocketAddr};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, Mutex};
 use std::fs::File;
 use std::io::Read;
 
@@ -49,7 +49,7 @@ fn main() {
   };
 
   let listener = TcpListener::bind(bind_addr).expect("could not bind");
-  let acceptor = Arc::new(TlsAcceptor::builder(pkcs).unwrap().build().unwrap());
+  let acceptor = TlsAcceptor::builder(pkcs).unwrap().build().unwrap();
 
   println!("listening");
   for connection in listener.incoming() {
@@ -70,59 +70,47 @@ fn main() {
     };
 
     println!("accepting");
-    let mut connection = acceptor.clone().accept(connection).expect("could not accept");
+    let mut connection = acceptor.accept(connection).expect("could not accept");
     println!("accepted");
 
-    let t_acceptor = acceptor.clone();
     let t_state = state.clone();
+    // spawn a thread only looking for a Hello message, rejecting others
     std::thread::spawn(move || {
-      loop {
-        println!("reading message");
-        let message: Message = match connection.read_message() {
-          Ok(m) => m,
-          Err(MessageError::Io(e)) => {
-            println!("could not read from connection: {}\nclosing stream", e);
-            break;
-          },
-          Err(MessageError::Protobuf(e)) => {
-            println!("could not parse message: {}", e);
-            continue;
-          }
-        };
-        println!("ayy lmao");
-        match message.get_field_type() {
-          Message_MessageType::HELLO => hello(t_state.clone(), message, t_acceptor.clone().accept(connection.get_ref().try_clone().unwrap()).unwrap()),
-          Message_MessageType::CLIPBOARD_UPDATE => clipboard_update(t_state.clone(), message),
-          _ => println!("received other message not yet supported")
+      println!("reading");
+      let message: Message = match connection.read_message() {
+        Ok(m) => m,
+        Err(MessageError::Io(e)) => {
+          println!("could not read from connection: {}\nclosing stream", e);
+          return;
+        },
+        Err(MessageError::Protobuf(e)) => {
+          println!("could not parse message: {}", e);
+          return;
         }
-      }
-      println!("Stream closing, removing from node tree");
-      let mut state = t_state.write().unwrap();
-      if let Some(pos) = state.node_tree.iter().position(|node| node.address == address) {
-        let node = state.node_tree.remove(pos);
-
-        let mut nu = NodeUpdate::new();
-        nu.set_field_type(NodeUpdate_UpdateType::REMOVED);
-        nu.set_node_id(node.id);
-
-        let message = nu.into();
-
-        for node in state.node_tree.iter_mut() {
-          node.stream.write_message(&message).ok();
+      };
+      println!("read");
+      connection.get_ref().set_nonblocking(true).unwrap();
+      match message.get_field_type() {
+        Message_MessageType::HELLO => hello(t_state.clone(), message, connection),
+        _ => {
+          let mut rej: Rejected = Rejected::new();
+          rej.set_reason(Rejected_RejectionReason::BAD_MESSAGE);
+          connection.write_message(&rej.into()).ok();
+          return; // close connection
         }
       }
     });
   }
 }
 
-fn hello(state: Arc<RwLock<State>>, mut message: Message, mut connection: TlsStream<TcpStream>) {
+fn hello(t_state: Arc<RwLock<State>>, mut message: Message, mut connection: TlsStream<TcpStream>) {
   if !message.has_hello() {
     return;
   }
   let mut hello = message.take_hello();
 
   {
-    let state = state.read().unwrap();
+    let state = t_state.read().unwrap();
     if state.node_tree.name_used(hello.get_name()) {
       let mut r = Rejected::new();
       r.set_reason(Rejected_RejectionReason::BAD_NAME);
@@ -132,12 +120,12 @@ fn hello(state: Arc<RwLock<State>>, mut message: Message, mut connection: TlsStr
   }
   {
     // make node here to ensure no id conflicts
-    let mut state = state.write().unwrap();
+    let mut state = t_state.write().unwrap();
     let id = state.node_tree.next_id();
     let node = Node {
       id,
       address: connection.get_ref().peer_addr().unwrap(),
-      stream: connection,
+      stream: Arc::new(Mutex::new(connection)),
       name: hello.take_name()
     };
 
@@ -149,7 +137,7 @@ fn hello(state: Arc<RwLock<State>>, mut message: Message, mut connection: TlsStr
     let num = node_update.into();
 
     for n in state.node_tree.iter_mut() {
-      n.stream.write_message(&num).ok();
+      n.stream.lock().unwrap().write_message(&num).ok();
     }
 
     state.node_tree.push(node);
@@ -164,7 +152,11 @@ fn hello(state: Arc<RwLock<State>>, mut message: Message, mut connection: TlsStr
     reg.set_clipboard(state.shared.clone());
 
     let len = state.node_tree.len();
-    state.node_tree[len - 1].stream.write_message(&reg.into()).ok();
+    let node = &mut state.node_tree[len - 1];
+
+    node.stream.lock().unwrap().write_message(&reg.into()).ok();
+    node.spawn_listener(t_state.clone());
+    // spawn node thread
   }
 }
 
@@ -186,7 +178,7 @@ fn clipboard_update(state: Arc<RwLock<State>>, mut message: Message) {
   let m = update.into();
 
   for node in state.node_tree.iter_mut() {
-    node.stream.write_message(&m).ok();
+    node.stream.lock().unwrap().write_message(&m).ok();
   }
 }
 
@@ -194,8 +186,48 @@ fn clipboard_update(state: Arc<RwLock<State>>, mut message: Message) {
 struct Node {
   id: u32,
   address: SocketAddr,
-  stream: TlsStream<TcpStream>,
+  stream: Arc<Mutex<TlsStream<TcpStream>>>,
   name: String
+}
+
+impl Node {
+  fn spawn_listener(&mut self, t_state: Arc<RwLock<State>>) {
+    println!("spawning");
+    let stream = self.stream.clone();
+    let address = self.address.clone();
+    std::thread::spawn(move || {
+      loop {
+        let mut stream = stream.lock().unwrap();
+        let message: Message = match stream.read_message() {
+          Ok(m) => m,
+          Err(MessageError::Io(ref e)) if e.kind() == std::io::ErrorKind::WouldBlock => {
+            // epoll?
+            std::thread::sleep(std::time::Duration::from_millis(250));
+            continue;
+          },
+          _ => {
+            println!("could not read from stream. closing stream.");
+            break;
+          }
+        };
+      }
+      println!("Stream closing, removing from node tree");
+      let mut state = t_state.write().unwrap();
+      if let Some(pos) = state.node_tree.iter().position(|node| node.address == address) {
+        let node = state.node_tree.remove(pos);
+
+        let mut nu = NodeUpdate::new();
+        nu.set_field_type(NodeUpdate_UpdateType::REMOVED);
+        nu.set_node_id(node.id);
+
+        let message = nu.into();
+
+        for node in state.node_tree.iter_mut() {
+          node.stream.lock().unwrap().write_message(&message).ok();
+        }
+      }
+    });
+  }
 }
 
 trait NodeTree {

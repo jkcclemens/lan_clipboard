@@ -2110,6 +2110,7 @@ impl ::protobuf::reflect::ProtobufValue for Rejected {
 pub enum Rejected_RejectionReason {
     BAD_VERSION = 0,
     BAD_NAME = 1,
+    BAD_MESSAGE = 2,
 }
 
 impl ::protobuf::ProtobufEnum for Rejected_RejectionReason {
@@ -2121,6 +2122,7 @@ impl ::protobuf::ProtobufEnum for Rejected_RejectionReason {
         match value {
             0 => ::std::option::Option::Some(Rejected_RejectionReason::BAD_VERSION),
             1 => ::std::option::Option::Some(Rejected_RejectionReason::BAD_NAME),
+            2 => ::std::option::Option::Some(Rejected_RejectionReason::BAD_MESSAGE),
             _ => ::std::option::Option::None
         }
     }
@@ -2129,6 +2131,7 @@ impl ::protobuf::ProtobufEnum for Rejected_RejectionReason {
         static values: &'static [Rejected_RejectionReason] = &[
             Rejected_RejectionReason::BAD_VERSION,
             Rejected_RejectionReason::BAD_NAME,
+            Rejected_RejectionReason::BAD_MESSAGE,
         ];
         values
     }
@@ -2185,10 +2188,10 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     te\x12*\n\x04type\x18\x01\x20\x01(\x0e2\x16.NodeUpdate.UpdateTypeR\x04ty\
     pe\x12\x17\n\x07node_id\x18\x02\x20\x01(\rR\x06nodeId\x12\x1b\n\tnode_na\
     me\x18\x03\x20\x01(\tR\x08nodeName\"$\n\nUpdateType\x12\t\n\x05ADDED\x10\
-    \0\x12\x0b\n\x07REMOVED\x10\x01\"o\n\x08Rejected\x121\n\x06reason\x18\
-    \x01\x20\x01(\x0e2\x19.Rejected.RejectionReasonR\x06reason\"0\n\x0fRejec\
-    tionReason\x12\x0f\n\x0bBAD_VERSION\x10\0\x12\x0c\n\x08BAD_NAME\x10\x01b\
-    \x06proto3\
+    \0\x12\x0b\n\x07REMOVED\x10\x01\"\x80\x01\n\x08Rejected\x121\n\x06reason\
+    \x18\x01\x20\x01(\x0e2\x19.Rejected.RejectionReasonR\x06reason\"A\n\x0fR\
+    ejectionReason\x12\x0f\n\x0bBAD_VERSION\x10\0\x12\x0c\n\x08BAD_NAME\x10\
+    \x01\x12\x0f\n\x0bBAD_MESSAGE\x10\x02b\x06proto3\
 ";
 
 static mut file_descriptor_proto_lazy: ::protobuf::lazy::Lazy<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::lazy::Lazy {

@@ -8,7 +8,7 @@ use clipboard::{ClipboardContext, ClipboardProvider};
 use native_tls::{TlsConnector, TlsStream, Certificate};
 use std::net::TcpStream;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, Mutex};
 use std::fs::File;
 use std::io::Read;
 
@@ -79,24 +79,25 @@ fn main() {
   println!("tcp connection");
   let connection = TcpStream::connect((hostname.as_str(), port)).unwrap();
   println!("tls connection");
-  let mut connection = connector.connect(hostname, connection).unwrap();
+  let mut connection = Arc::new(Mutex::new(connector.connect(hostname, connection).unwrap()));
+  connection.lock().unwrap().get_ref().set_nonblocking(true).unwrap();
   println!("connected");
 
   let mut hello: Hello = Hello::new();
   hello.set_version(1);
   hello.set_name(name);
 
-  receive(state.clone(), connector.clone().connect(hostname, connection.get_ref().try_clone().unwrap()).unwrap());
-  send(state.clone(), connector.clone().connect(hostname, connection.get_ref().try_clone().unwrap()).unwrap());
+  receive(state.clone(), connection.clone());
+  send(state.clone(), connection.clone());
 
   println!("sending");
-  connection.write_message(&hello.into()).unwrap();
+  connection.lock().unwrap().write_message(&hello.into()).unwrap();
   println!("sent");
 
   let _ = std::io::stdin().read_line(&mut String::new());
 }
 
-fn send(state: Arc<RwLock<State>>, mut stream: TlsStream<TcpStream>) {
+fn send(state: Arc<RwLock<State>>, stream: Arc<Mutex<TlsStream<TcpStream>>>) {
   let mut ctx = ClipboardContext::new().unwrap();
   std::thread::spawn(move || {
     loop {
@@ -121,16 +122,20 @@ fn send(state: Arc<RwLock<State>>, mut stream: TlsStream<TcpStream>) {
       }
       let mut cu = ClipboardUpdate::new();
       cu.set_contents(local);
-      stream.write_message(&cu.into()).ok();
+      stream.lock().unwrap().write_message(&cu.into()).ok();
     }
   });
 }
 
-fn receive(state: Arc<RwLock<State>>, mut stream: TlsStream<TcpStream>) {
+fn receive(state: Arc<RwLock<State>>, stream: Arc<Mutex<TlsStream<TcpStream>>>) {
   std::thread::spawn(move || {
     loop {
-      let mut message: Message = match stream.read_message() {
+      let mut message: Message = match stream.lock().unwrap().read_message() {
         Ok(m) => m,
+        Err(MessageError::Io(ref e)) if e.kind() == std::io::ErrorKind::WouldBlock => {
+          std::thread::sleep(std::time::Duration::from_millis(250));
+          continue;
+        },
         Err(MessageError::Io(e)) => {
           println!("could not read from connection: {}\nclosing stream", e);
           break;
