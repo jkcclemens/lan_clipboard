@@ -13,9 +13,16 @@ struct State {
 }
 
 fn main() {
+  let args: Vec<String> = std::env::args().skip(1).collect();
+  if args.is_empty() {
+    println!("Specify 'hostname:port' to run the server on.");
+    return;
+  }
+  let bind_addr = &args[0]; // ("0.0.0.0", 38153)
+
   let state = Arc::new(RwLock::new(State::default()));
 
-  let listener = TcpListener::bind(("0.0.0.0", 38153)).expect("could not bind");
+  let listener = TcpListener::bind(bind_addr).expect("could not bind");
   for connection in listener.incoming() {
     let mut connection = match connection {
       Ok(c) => c,
