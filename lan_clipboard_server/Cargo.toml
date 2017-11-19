@@ -7,3 +7,4 @@ authors = ["Kyle Clemens <jkc.clemens@gmail.com>"]
 lan_clipboard = { path = "../" }
 protobuf = "1.4"
 integer-encoding = "1.0"
+native-tls = "0.1"

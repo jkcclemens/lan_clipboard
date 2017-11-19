@@ -1,10 +1,14 @@
 extern crate lan_clipboard;
 extern crate protobuf;
 extern crate integer_encoding;
+extern crate native_tls;
 
 use lan_clipboard::*;
+use native_tls::{Pkcs12, TlsAcceptor, TlsStream};
 use std::net::{TcpListener, TcpStream, SocketAddr};
 use std::sync::{Arc, RwLock};
+use std::fs::File;
+use std::io::Read;
 
 #[derive(Default)]
 struct State {
@@ -15,16 +19,41 @@ struct State {
 fn main() {
   let args: Vec<String> = std::env::args().skip(1).collect();
   if args.is_empty() {
-    println!("Specify 'hostname:port' to run the server on.");
+    println!("usage: server [hostname:port] [pkcs12 archive] [archive password]");
     return;
   }
   let bind_addr = &args[0]; // ("0.0.0.0", 38153)
+  let archive = &args[1];
+  let passwd = &args[2];
 
   let state = Arc::new(RwLock::new(State::default()));
 
+  let mut f = match File::open(archive) {
+    Ok(f) => f,
+    Err(e) => {
+      println!("could not open pkcs12 archive: {}", e);
+      return;
+    }
+  };
+  let mut pkcs = Vec::new();
+  if let Err(e) = f.read_to_end(&mut pkcs) {
+    println!("could not read pkcs12 archive: {}", e);
+    return;
+  }
+  let pkcs = match Pkcs12::from_der(&pkcs, passwd) {
+    Ok(p) => p,
+    Err(e) => {
+      println!("could not parse pkcs12 archive: {}", e);
+      return;
+    }
+  };
+
   let listener = TcpListener::bind(bind_addr).expect("could not bind");
+  let acceptor = Arc::new(TlsAcceptor::builder(pkcs).unwrap().build().unwrap());
+
+  println!("listening");
   for connection in listener.incoming() {
-    let mut connection = match connection {
+    let connection = match connection {
       Ok(c) => c,
       Err(e) => {
         println!("could not accept connection: {}", e);
@@ -40,9 +69,15 @@ fn main() {
       }
     };
 
+    println!("accepting");
+    let mut connection = acceptor.clone().accept(connection).expect("could not accept");
+    println!("accepted");
+
+    let t_acceptor = acceptor.clone();
     let t_state = state.clone();
     std::thread::spawn(move || {
       loop {
+        println!("reading message");
         let message: Message = match connection.read_message() {
           Ok(m) => m,
           Err(MessageError::Io(e)) => {
@@ -54,8 +89,9 @@ fn main() {
             continue;
           }
         };
+        println!("ayy lmao");
         match message.get_field_type() {
-          Message_MessageType::HELLO => hello(t_state.clone(), message, &mut connection),
+          Message_MessageType::HELLO => hello(t_state.clone(), message, t_acceptor.clone().accept(connection.get_ref().try_clone().unwrap()).unwrap()),
           Message_MessageType::CLIPBOARD_UPDATE => clipboard_update(t_state.clone(), message),
           _ => println!("received other message not yet supported")
         }
@@ -79,7 +115,7 @@ fn main() {
   }
 }
 
-fn hello(state: Arc<RwLock<State>>, mut message: Message, connection: &mut TcpStream) {
+fn hello(state: Arc<RwLock<State>>, mut message: Message, mut connection: TlsStream<TcpStream>) {
   if !message.has_hello() {
     return;
   }
@@ -100,8 +136,8 @@ fn hello(state: Arc<RwLock<State>>, mut message: Message, connection: &mut TcpSt
     let id = state.node_tree.next_id();
     let node = Node {
       id,
-      address: connection.peer_addr().unwrap(),
-      stream: connection.try_clone().unwrap(),
+      address: connection.get_ref().peer_addr().unwrap(),
+      stream: connection,
       name: hello.take_name()
     };
 
@@ -127,7 +163,8 @@ fn hello(state: Arc<RwLock<State>>, mut message: Message, connection: &mut TcpSt
     reg.set_tree(n_tree);
     reg.set_clipboard(state.shared.clone());
 
-    connection.write_message(&reg.into()).ok();
+    let len = state.node_tree.len();
+    state.node_tree[len - 1].stream.write_message(&reg.into()).ok();
   }
 }
 
@@ -157,7 +194,7 @@ fn clipboard_update(state: Arc<RwLock<State>>, mut message: Message) {
 struct Node {
   id: u32,
   address: SocketAddr,
-  stream: TcpStream,
+  stream: TlsStream<TcpStream>,
   name: String
 }
 

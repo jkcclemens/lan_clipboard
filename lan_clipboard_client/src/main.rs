@@ -1,12 +1,16 @@
 extern crate lan_clipboard;
 extern crate protobuf;
 extern crate clipboard;
+extern crate native_tls;
 
 use lan_clipboard::*;
 use clipboard::{ClipboardContext, ClipboardProvider};
+use native_tls::{TlsConnector, TlsStream, Certificate};
 use std::net::TcpStream;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
+use std::fs::File;
+use std::io::Read;
 
 #[derive(Default)]
 struct State {
@@ -15,32 +19,84 @@ struct State {
   shared: Vec<u8>
 }
 
+impl State {
+  fn update_clipboard(&self) {
+    if let Ok(s) = String::from_utf8(self.shared.clone()) {
+      if let Ok(mut c) = ClipboardContext::new() {
+        c.set_contents(s).ok();
+      }
+    }
+  }
+}
+
 fn main() {
   let args: Vec<String> = std::env::args().skip(1).collect();
-  if args.len() < 2 {
-    println!("Specify a server 'hostname:port' and a client name");
+  if args.len() < 4 {
+    println!("usage: client [hostname] [port] [cert file] [client name]");
     return;
   }
-  let server = &args[0];
-  let name = args[1..].join(" ");
+  let hostname = &args[0];
+  let port: u16 = match args[1].parse() {
+    Ok(p) => p,
+    Err(e) => {
+      println!("Invalid port: {}", e);
+      return;
+    }
+  };
+  let cert = &args[2];
+  let name = args[3..].join(" ");
+
+  let mut f = match File::open(cert) {
+    Ok(f) => f,
+    Err(e) => {
+      println!("could not open cert file: {}", e);
+      return;
+    }
+  };
+
+  let mut data = Vec::new();
+  if let Err(e) = f.read_to_end(&mut data) {
+    println!("could not read cert file: {}", e);
+    return;
+  }
+
+  let cert = match Certificate::from_der(&data) {
+    Ok(c) => c,
+    Err(e) => {
+      println!("could not parse cert file: {}", e);
+      return;
+    }
+  };
 
   let state = Arc::new(RwLock::new(State::default()));
 
-  let mut connection = TcpStream::connect(server).unwrap();
+  let mut builder = TlsConnector::builder().unwrap();
+  if let Err(e) = builder.add_root_certificate(cert) {
+    println!("could not add cert file: {}", e);
+    return;
+  }
+  let connector = builder.build().unwrap();
+  println!("tcp connection");
+  let connection = TcpStream::connect((hostname.as_str(), port)).unwrap();
+  println!("tls connection");
+  let mut connection = connector.connect(hostname, connection).unwrap();
+  println!("connected");
 
   let mut hello: Hello = Hello::new();
   hello.set_version(1);
   hello.set_name(name);
 
-  receive(state.clone(), connection.try_clone().unwrap());
-  send(state.clone(), connection.try_clone().unwrap());
+  receive(state.clone(), connector.clone().connect(hostname, connection.get_ref().try_clone().unwrap()).unwrap());
+  send(state.clone(), connector.clone().connect(hostname, connection.get_ref().try_clone().unwrap()).unwrap());
 
+  println!("sending");
   connection.write_message(&hello.into()).unwrap();
+  println!("sent");
 
   let _ = std::io::stdin().read_line(&mut String::new());
 }
 
-fn send(state: Arc<RwLock<State>>, mut stream: TcpStream) {
+fn send(state: Arc<RwLock<State>>, mut stream: TlsStream<TcpStream>) {
   let mut ctx = ClipboardContext::new().unwrap();
   std::thread::spawn(move || {
     loop {
@@ -70,7 +126,7 @@ fn send(state: Arc<RwLock<State>>, mut stream: TcpStream) {
   });
 }
 
-fn receive(state: Arc<RwLock<State>>, mut stream: TcpStream) {
+fn receive(state: Arc<RwLock<State>>, mut stream: TlsStream<TcpStream>) {
   std::thread::spawn(move || {
     loop {
       let mut message: Message = match stream.read_message() {
@@ -93,10 +149,7 @@ fn receive(state: Arc<RwLock<State>>, mut stream: TcpStream) {
           let new = cu.take_contents();
           let mut state = state.write().unwrap();
           state.shared = new;
-          if let Ok(s) = String::from_utf8(state.shared.clone()) {
-            let mut ctx = ClipboardContext::new().unwrap();
-            ctx.set_contents(s).unwrap();
-          }
+          state.update_clipboard();
         },
         Message_MessageType::REGISTERED => {
           if !message.has_registered() {
@@ -107,6 +160,7 @@ fn receive(state: Arc<RwLock<State>>, mut stream: TcpStream) {
           state.registered = true;
           state.tree = registered.take_tree().take_nodes();
           state.shared = registered.get_clipboard().to_vec();
+          state.update_clipboard();
           println!("Registered as node {} with node tree:\n{:#?}", registered.get_node_id(), state.tree);
         },
         Message_MessageType::REJECTED => {
