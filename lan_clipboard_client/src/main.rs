@@ -76,12 +76,9 @@ fn main() {
     return;
   }
   let connector = builder.build().unwrap();
-  println!("tcp connection");
   let connection = TcpStream::connect((hostname.as_str(), port)).unwrap();
-  println!("tls connection");
   let mut connection = Arc::new(Mutex::new(connector.connect(hostname, connection).unwrap()));
   connection.lock().unwrap().get_ref().set_nonblocking(true).unwrap();
-  println!("connected");
 
   let mut hello: Hello = Hello::new();
   hello.set_version(1);
@@ -90,9 +87,7 @@ fn main() {
   receive(state.clone(), connection.clone());
   send(state.clone(), connection.clone());
 
-  println!("sending");
   connection.lock().unwrap().write_message(&hello.into()).unwrap();
-  println!("sent");
 
   let _ = std::io::stdin().read_line(&mut String::new());
 }

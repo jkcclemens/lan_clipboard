@@ -51,7 +51,6 @@ fn main() {
   let listener = TcpListener::bind(bind_addr).expect("could not bind");
   let acceptor = TlsAcceptor::builder(pkcs).unwrap().build().unwrap();
 
-  println!("listening");
   for connection in listener.incoming() {
     let connection = match connection {
       Ok(c) => c,
@@ -69,14 +68,11 @@ fn main() {
       }
     };
 
-    println!("accepting");
     let mut connection = acceptor.accept(connection).expect("could not accept");
-    println!("accepted");
 
     let t_state = state.clone();
     // spawn a thread only looking for a Hello message, rejecting others
     std::thread::spawn(move || {
-      println!("reading");
       let message: Message = match connection.read_message() {
         Ok(m) => m,
         Err(MessageError::Io(e)) => {
@@ -88,7 +84,6 @@ fn main() {
           return;
         }
       };
-      println!("read");
       connection.get_ref().set_nonblocking(true).unwrap();
       match message.get_field_type() {
         Message_MessageType::HELLO => hello(t_state.clone(), message, connection),
@@ -192,13 +187,11 @@ struct Node {
 
 impl Node {
   fn spawn_listener(&mut self, t_state: Arc<RwLock<State>>) {
-    println!("spawning");
     let stream = self.stream.clone();
     let address = self.address.clone();
     std::thread::spawn(move || {
       loop {
-        let mut stream = stream.lock().unwrap();
-        let message: Message = match stream.read_message() {
+        let mut message: Message = match stream.lock().unwrap().read_message() {
           Ok(m) => m,
           Err(MessageError::Io(ref e)) if e.kind() == std::io::ErrorKind::WouldBlock => {
             // epoll?
@@ -210,6 +203,11 @@ impl Node {
             break;
           }
         };
+
+        match message.get_field_type() {
+          Message_MessageType::CLIPBOARD_UPDATE => clipboard_update(t_state.clone(), message),
+          _ => {}
+        }
       }
       println!("Stream closing, removing from node tree");
       let mut state = t_state.write().unwrap();
