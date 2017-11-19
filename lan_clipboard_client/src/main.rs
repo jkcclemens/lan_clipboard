@@ -113,6 +113,7 @@ fn send(state: Arc<RwLock<State>>, stream: Arc<Mutex<TlsStream<TcpStream>>>) {
         last_ping.0 = last_ping.0 + 1;
         let mut ping = Ping::new();
         ping.set_seq(last_ping.0);
+        println!("ping {}", last_ping.0);
         stream.lock().unwrap().write_message(&ping.into()).ok();
       }
       let shared = {
@@ -199,6 +200,14 @@ fn receive(state: Arc<RwLock<State>>, stream: Arc<Mutex<TlsStream<TcpStream>>>) 
           println!("Node {} was {:?}", node_update.get_node_id(), node_update.get_field_type());
           println!("new tree: {:#?}", state.tree);
         },
+        Message_MessageType::PONG => {
+          if !message.has_pong() {
+            continue;
+          }
+
+          let pong = message.take_pong();
+          println!("pong {}", pong.get_seq());
+        }
         _ => println!("received unsupported message")
       }
     }
