@@ -2,13 +2,17 @@ extern crate lan_clipboard;
 extern crate protobuf;
 extern crate integer_encoding;
 extern crate native_tls;
+extern crate mio;
 
 use lan_clipboard::*;
 use native_tls::{Pkcs12, TlsAcceptor, TlsStream};
-use std::net::{TcpListener, TcpStream, SocketAddr};
+use mio::*;
+use mio::net::{TcpListener, TcpStream};
+use std::net::SocketAddr;
 use std::sync::{Arc, RwLock, Mutex};
 use std::fs::File;
 use std::io::Read;
+use std::str::FromStr;
 
 #[derive(Default)]
 struct State {
@@ -22,7 +26,13 @@ fn main() {
     println!("usage: server [hostname:port] [pkcs12 archive] [archive password]");
     return;
   }
-  let bind_addr = &args[0]; // ("0.0.0.0", 38153)
+  let bind_addr = match SocketAddr::from_str(&args[0]) {
+    Ok(b) => b,
+    Err(e) => {
+      println!("Invalid hostname:port: {}", e);
+      return;
+    }
+  }; // ("0.0.0.0", 38153)
   let archive = &args[1];
   let passwd = &args[2];
 
@@ -48,49 +58,62 @@ fn main() {
     }
   };
 
-  let listener = TcpListener::bind(bind_addr).expect("could not bind");
+  let conn_poll = Poll::new().unwrap();
+
+  let listener = TcpListener::bind(&bind_addr).expect("could not bind");
   let acceptor = TlsAcceptor::builder(pkcs).unwrap().build().unwrap();
 
-  for connection in listener.incoming() {
-    let connection = match connection {
-      Ok(c) => c,
-      Err(e) => {
-        println!("could not accept connection: {}", e);
-        continue;
-      }
-    };
+  conn_poll.register(&listener, Token(1), Ready::writable(), PollOpt::edge()).unwrap();
 
-    let mut connection = acceptor.accept(connection).expect("could not accept");
+  let mut conn_events = Events::with_capacity(128);
 
-    let t_state = state.clone();
-    // spawn a thread only looking for a Hello message, rejecting others
-    std::thread::spawn(move || {
-      let message: Message = match connection.read_message() {
-        Ok(m) => m,
-        Err(MessageError::Io(e)) => {
-          println!("could not read from connection: {}\nclosing stream", e);
-          return;
-        },
-        Err(MessageError::Protobuf(e)) => {
-          println!("could not parse message: {}", e);
-          return;
+  loop {
+    conn_poll.poll(&mut conn_events, Some(std::time::Duration::from_millis(100))).unwrap();
+    for _event in conn_events.iter() {
+      let (connection, _) = match listener.accept() {
+        Ok(c) => c,
+        Err(e) => {
+          println!("could not accept connection: {}", e);
+          continue;
         }
       };
-      connection.get_ref().set_nonblocking(true).unwrap();
-      match message.get_field_type() {
-        Message_MessageType::HELLO => hello(t_state.clone(), message, connection),
-        _ => {
-          let mut rej: Rejected = Rejected::new();
-          rej.set_reason(Rejected_RejectionReason::BAD_MESSAGE);
-          connection.write_message(&rej.into()).ok();
-          return; // close connection
+
+      let mut connection = acceptor.accept(connection).expect("could not accept");
+
+      let poll = Poll::new().unwrap();
+      poll.register(connection.get_ref(), Token(0), Ready::readable(), PollOpt::edge()).unwrap();
+
+      let events = Events::with_capacity(1024);
+
+      let t_state = state.clone();
+      // spawn a thread only looking for a Hello message, rejecting others
+      std::thread::spawn(move || {
+        let message: Message = match connection.read_message() {
+          Ok(m) => m,
+          Err(MessageError::Io(e)) => {
+            println!("could not read from connection: {}\nclosing stream", e);
+            return;
+          },
+          Err(MessageError::Protobuf(e)) => {
+            println!("could not parse message: {}", e);
+            return;
+          }
+        };
+        match message.get_field_type() {
+          Message_MessageType::HELLO => hello(t_state.clone(), message, connection, poll, events),
+          _ => {
+            let mut rej: Rejected = Rejected::new();
+            rej.set_reason(Rejected_RejectionReason::BAD_MESSAGE);
+            connection.write_message(&rej.into()).ok();
+            return; // close connection
+          }
         }
-      }
-    });
+      });
+    }
   }
 }
 
-fn hello(t_state: Arc<RwLock<State>>, mut message: Message, mut connection: TlsStream<TcpStream>) {
+fn hello(t_state: Arc<RwLock<State>>, mut message: Message, mut connection: TlsStream<TcpStream>, poll: Poll, events: Events) {
   if !message.has_hello() {
     return;
   }
@@ -149,7 +172,7 @@ fn hello(t_state: Arc<RwLock<State>>, mut message: Message, mut connection: TlsS
     let node = &mut state.node_tree[len - 1];
 
     node.stream.lock().unwrap().write_message(&reg.into()).ok();
-    node.spawn_listener(t_state.clone());
+    node.spawn_listener(t_state.clone(), poll, events);
     // spawn node thread
   }
 }
@@ -199,28 +222,31 @@ struct Node {
 }
 
 impl Node {
-  fn spawn_listener(&mut self, t_state: Arc<RwLock<State>>) {
+  fn spawn_listener(&mut self, t_state: Arc<RwLock<State>>, poll: Poll, mut events: Events) {
     let stream = self.stream.clone();
     let address = self.address.clone();
     std::thread::spawn(move || {
-      loop {
-        let message: Message = match stream.lock().unwrap().read_message() {
-          Ok(m) => m,
-          Err(MessageError::Io(ref e)) if e.kind() == std::io::ErrorKind::WouldBlock => {
-            // epoll?
-            std::thread::sleep(std::time::Duration::from_millis(250));
-            continue;
-          },
-          _ => {
-            println!("could not read from stream. closing stream.");
-            break;
-          }
-        };
+      'outer: loop {
+        poll.poll(&mut events, None).unwrap();
+        for _event in events.iter() {
+          let message: Message = match stream.lock().unwrap().read_message() {
+            Ok(m) => m,
+            Err(MessageError::Io(ref e)) if e.kind() == std::io::ErrorKind::WouldBlock => {
+              // epoll?
+              std::thread::sleep(std::time::Duration::from_millis(250));
+              continue;
+            },
+            _ => {
+              println!("could not read from stream. closing stream.");
+              break 'outer;
+            }
+          };
 
-        match message.get_field_type() {
-          Message_MessageType::CLIPBOARD_UPDATE => clipboard_update(t_state.clone(), message),
-          Message_MessageType::PING => ping(t_state.clone(), message, stream.clone()),
-          _ => {}
+          match message.get_field_type() {
+            Message_MessageType::CLIPBOARD_UPDATE => clipboard_update(t_state.clone(), message),
+            Message_MessageType::PING => ping(t_state.clone(), message, stream.clone()),
+            _ => {}
+          }
         }
       }
       println!("Stream closing, removing from node tree");
