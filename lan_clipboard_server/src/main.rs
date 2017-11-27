@@ -4,7 +4,6 @@ extern crate integer_encoding;
 extern crate native_tls;
 extern crate mio;
 extern crate slab;
-extern crate bytes;
 
 use lan_clipboard::*;
 use native_tls::{Pkcs12, TlsAcceptor, TlsStream};
@@ -184,7 +183,7 @@ impl Server {
       node_update.into()
     };
 
-    for (_, n) in self.nodes.iter_mut() {
+    for (_, n) in self.nodes.iter_mut().filter(|x| x.0 != token.0) {
       n.queue_message(num.clone(), poll);
     }
 
