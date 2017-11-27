@@ -27,19 +27,22 @@ pub trait MessageWriter {
 
 impl<T: Read> MessageReader for T {
   fn read_message(&mut self) -> MessageResult<Message> {
-    let size: u32 = self.read_varint().map_err(MessageError::Io)?;
+    let mut br = std::io::BufReader::new(self);
+    let size: u32 = br.read_varint().map_err(MessageError::Io)?;
     let mut data = Vec::with_capacity(size as usize);
     unsafe { data.set_len(size as usize); }
-    self.read_exact(&mut data).map_err(MessageError::Io)?;
+    br.read_exact(&mut data).map_err(MessageError::Io)?;
     protobuf::parse_from_bytes(&data).map_err(MessageError::Protobuf)
   }
 }
 
 impl<T: Write> MessageWriter for T {
   fn write_message(&mut self, msg: &Message) -> MessageResult<()> {
+    let mut bw = std::io::BufWriter::new(self);
     let size = msg.compute_size();
-    self.write_varint(size).map_err(MessageError::Io)?;
-    msg.write_to_writer(self).map_err(MessageError::Protobuf)
+    bw.write_varint(size).map_err(MessageError::Io)?;
+    msg.write_to_writer(&mut bw).map_err(MessageError::Protobuf)?;
+    bw.flush().map_err(MessageError::Io)
   }
 }
 

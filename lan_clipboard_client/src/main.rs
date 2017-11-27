@@ -89,6 +89,10 @@ fn main() {
   receive(state.clone(), connection.clone());
   send(state.clone(), connection.clone());
 
+  std::thread::sleep_ms(100);
+
+  println!("writing hello");
+
   connection.lock().unwrap().write_message(&hello.into()).unwrap();
 
   let _ = std::io::stdin().read_line(&mut String::new());
@@ -152,6 +156,7 @@ fn receive(state: Arc<RwLock<State>>, stream: Arc<Mutex<TlsStream<TcpStream>>>) 
           continue;
         }
       };
+      println!("ayy");
       match message.get_field_type() {
         Message_MessageType::CLIPBOARD_UPDATE => {
           if !message.has_clipboard_update() {
