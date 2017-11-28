@@ -4,6 +4,7 @@ extern crate clipboard;
 extern crate native_tls;
 extern crate chrono;
 extern crate mio;
+extern crate crypto_hash;
 
 use lan_clipboard::*;
 use clipboard::{ClipboardContext, ClipboardProvider};
@@ -18,6 +19,7 @@ use std::fs::File;
 use std::io::{self, Read};
 
 const CLIENT: Token = Token(0);
+const ALGO: crypto_hash::Algorithm = crypto_hash::Algorithm::SHA512;
 
 #[derive(Default)]
 struct State {
@@ -95,7 +97,7 @@ fn main() {
     return;
   }
 
-  let mut poll = Poll::new().unwrap();
+  let poll = Poll::new().unwrap();
 
   let connector = builder.build().unwrap();
   let connection = TcpStream::connect(&addr).unwrap();
@@ -162,6 +164,7 @@ struct Client {
   state: State,
   tx: Vec<Message>,
   last_ping: (u32, DateTime<Utc>),
+  last_update: Vec<u8>,
   clipboard: ClipboardContext
 }
 
@@ -174,6 +177,7 @@ impl Client {
       state: State::default(),
       tx: Vec::new(),
       last_ping: (0, Utc::now()),
+      last_update: Vec::new(),
       clipboard: ClipboardContext::new().unwrap()
     }
   }
@@ -257,17 +261,19 @@ impl Client {
           Ok(c) => c.into_bytes(),
           Err(_) => continue
         };
-        if local == shared {
+        let local_hash = crypto_hash::digest(ALGO, &local);
+        if local == shared || client.last_update == local {
           continue;
         }
         let mut cu = ClipboardUpdate::new();
-        cu.set_contents(local);
+        cu.set_contents(local.clone());
         client.queue_message(cu.into(), &mut poll.lock().unwrap());
+        client.last_update = local_hash;
       }
     });
   }
 
-  fn receive(&mut self, mut message: Message, poll: &mut Poll) {
+  fn receive(&mut self, mut message: Message, _poll: &mut Poll) {
     match message.get_field_type() {
       Message_MessageType::CLIPBOARD_UPDATE => {
         if !message.has_clipboard_update() {
