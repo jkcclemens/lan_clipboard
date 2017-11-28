@@ -1,22 +1,22 @@
 extern crate lan_clipboard;
 extern crate protobuf;
 extern crate clipboard;
-extern crate native_tls;
+extern crate rustls;
 extern crate chrono;
 extern crate mio;
 extern crate crypto_hash;
 
 use lan_clipboard::*;
 use clipboard::{ClipboardContext, ClipboardProvider};
-use native_tls::{TlsConnector, TlsStream, Certificate, MidHandshakeTlsStream};
+use rustls::{ClientConfig, ClientSession, Session};
 use chrono::{Utc, DateTime};
 use mio::*;
 use mio::net::TcpStream;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock, Mutex};
+use std::sync::{Arc, Mutex};
 use std::fs::File;
-use std::io::{self, Read};
+use std::io;
 
 const CLIENT: Token = Token(0);
 const ALGO: crypto_hash::Algorithm = crypto_hash::Algorithm::SHA512;
@@ -69,7 +69,7 @@ fn main() {
   let cert = &args[2];
   let name = args[3..].join(" ");
 
-  let mut f = match File::open(cert) {
+  let f = match File::open(cert) {
     Ok(f) => f,
     Err(e) => {
       println!("could not open cert file: {}", e);
@@ -77,48 +77,32 @@ fn main() {
     }
   };
 
-  let mut data = Vec::new();
-  if let Err(e) = f.read_to_end(&mut data) {
-    println!("could not read cert file: {}", e);
+  let mut config = ClientConfig::new();
+  let (added, _) = config.root_store.add_pem_file(&mut io::BufReader::new(f)).unwrap();
+  if added == 0 {
+    println!("No certs found.");
     return;
   }
-
-  let cert = match Certificate::from_der(&data) {
-    Ok(c) => c,
-    Err(e) => {
-      println!("could not parse cert file: {}", e);
-      return;
-    }
-  };
-
-  let mut builder = TlsConnector::builder().unwrap();
-  if let Err(e) = builder.add_root_certificate(cert) {
-    println!("could not add cert file: {}", e);
-    return;
-  }
+  let config = Arc::new(config);
+  let session = ClientSession::new(&config, hostname);
 
   let poll = Poll::new().unwrap();
 
-  let connector = builder.build().unwrap();
-  let connection = TcpStream::connect(&addr).unwrap();
-  poll.register(&connection, CLIENT, Ready::readable() | Ready::writable(), PollOpt::edge()).unwrap();
+  let connection = TcpStream::connect(&addr).expect("could not create tcp stream");
+  poll.register(&connection, CLIENT, Ready::readable() | Ready::writable(), PollOpt::edge()).expect("could not register poll");
 
   let poll = Arc::new(Mutex::new(poll));
 
-  let mut client = Client::new(connection);
-  client.try_start_tls(&connector, hostname).unwrap();
-  let client = Arc::new(RwLock::new(client));
+  let client = Client::new(connection, session);
+  let client = Arc::new(Mutex::new(client));
   Client::send_thread(client.clone(), poll.clone());
 
   let mut events = Events::with_capacity(1024);
 
   loop {
-    poll.lock().unwrap().poll(&mut events, Some(std::time::Duration::from_millis(100))).unwrap();
+    poll.lock().unwrap().poll(&mut events, Some(std::time::Duration::from_millis(100))).expect("could not poll");
     for event in events.iter() {
-      let mut client = client.write().unwrap();
-      if !client.try_resume_tls().unwrap() {
-        continue;
-      }
+      let mut client = client.lock().unwrap();
 
       if !client.state.registered && !client.state.hello_sent {
         let mut hello: Hello = Hello::new();
@@ -128,39 +112,38 @@ fn main() {
         client.state.hello_sent = true;
       }
 
-      println!("tx: {:?}", client.tx);
+      if event.readiness().is_readable() {
+        if client.session.wants_read() {
+          client.do_tls_read();
+        }
 
-      if event.readiness().is_writable() {
-        if client.tx.is_empty() {
-          client.reregister(&mut poll.lock().unwrap(), Ready::readable(), PollOpt::edge());
-          continue;
+        if let Ok(message) = client.session.read_message() {
+          client.receive(message, &mut poll.lock().unwrap());
         }
-        {
-          let mut tx = Vec::new();
-          std::mem::swap(&mut client.tx, &mut tx);
-          let stream = client.tls.as_mut().unwrap();
-          for t in tx {
-            let _ = stream.write_message(&t); // FIXME: don't ignore errors
-          }
-        }
-        client.reregister(&mut poll.lock().unwrap(), Ready::readable(), PollOpt::edge());
+        client.reregister(&mut poll.lock().unwrap());
       }
 
-      if event.readiness().is_readable() {
-        let message = match client.tls.as_mut().unwrap().read_message() {
-          Ok(m) => m,
-          Err(_) => continue // wait until we have a message
-        };
-        client.receive(message, &mut poll.lock().unwrap());
+      if event.readiness().is_writable() {
+        if client.session.wants_write() {
+          client.do_tls_write();
+        }
+
+        if !client.tx.is_empty() {
+          let mut tx = Vec::new();
+          std::mem::swap(&mut client.tx, &mut tx);
+          for t in tx {
+            let _ = client.session.write_message(&t); // FIXME: don't ignore errors
+          }
+        }
+        client.reregister(&mut poll.lock().unwrap());
       }
     }
   }
 }
 
 struct Client {
-  tcp: Option<TcpStream>,
-  mid: Option<MidHandshakeTlsStream<TcpStream>>,
-  tls: Option<TlsStream<TcpStream>>,
+  tcp: TcpStream,
+  session: ClientSession,
   state: State,
   tx: Vec<Message>,
   last_ping: (u32, DateTime<Utc>),
@@ -169,11 +152,10 @@ struct Client {
 }
 
 impl Client {
-  fn new(tcp: TcpStream) -> Client {
+  fn new(tcp: TcpStream, session: ClientSession) -> Client {
     Client {
-      tcp: Some(tcp),
-      mid: None,
-      tls: None,
+      tcp,
+      session,
       state: State::default(),
       tx: Vec::new(),
       last_ping: (0, Utc::now()),
@@ -182,48 +164,51 @@ impl Client {
     }
   }
 
-  fn try_start_tls(&mut self, connector: &TlsConnector, hostname: &str) -> io::Result<bool> {
-    match self.tcp.take() {
-      Some(tcp) => {
-        match connector.connect(hostname, tcp) {
-          Ok(s) => {
-            self.tls = Some(s);
-            Ok(true)
-          },
-          Err(native_tls::HandshakeError::Interrupted(s)) => {
-            self.mid = Some(s);
-            Ok(false)
-          },
-          Err(e) => Err(io::Error::new(io::ErrorKind::Other, e))
-        }
-      },
-      None => Ok(true)
+  /// What IO events we're currently waiting for,
+  /// based on wants_read/wants_write.
+  fn event_set(&self) -> mio::Ready {
+    let rd = self.session.wants_read();
+    let wr = self.session.wants_write();
+
+    let mut ready = if rd && wr {
+      mio::Ready::readable() | mio::Ready::writable()
+    } else if wr {
+      mio::Ready::writable()
+    } else {
+      mio::Ready::readable()
+    };
+
+    if !self.tx.is_empty() {
+      ready.insert(Ready::writable());
+    }
+    ready
+  }
+
+  fn reregister(&self, poll: &mut Poll) {
+    poll.reregister(&self.tcp, CLIENT, self.event_set(), PollOpt::edge() | PollOpt::oneshot()).unwrap();
+  }
+
+  fn do_tls_write(&mut self) {
+    if let Err(e) = self.session.write_tls(&mut self.tcp) {
+      panic!("write err: {}", e);
+    }
+    if let Err(e) = self.session.process_new_packets() {
+      panic!("process err (post-write): {}", e);
     }
   }
 
-  fn try_resume_tls(&mut self) -> io::Result<bool> {
-    match self.mid.take() {
-      Some(tcp) => {
-        match tcp.handshake() {
-          Ok(s) => {
-            self.tls = Some(s);
-            Ok(true)
-          },
-          Err(native_tls::HandshakeError::Interrupted(s)) => {
-            self.mid = Some(s);
-            Ok(false)
-          },
-          Err(e) => Err(io::Error::new(io::ErrorKind::Other, e))
-        }
-      },
-      None => Ok(true)
+  fn do_tls_read(&mut self) {
+    if let Err(e) = self.session.read_tls(&mut self.tcp) {
+      panic!("read err: {}", e);
+    }
+    if let Err(e) = self.session.process_new_packets() {
+      panic!("process err (post-read): {}", e);
     }
   }
-
 
   fn queue_message(&mut self, msg: Message, poll: &mut Poll) {
     self.tx.push(msg);
-    self.reregister(poll, Ready::writable(), PollOpt::edge() | PollOpt::oneshot());
+    self.reregister(poll);
   }
 
   #[allow(unused)]
@@ -231,22 +216,18 @@ impl Client {
     where I: IntoIterator<Item=Message>
   {
     self.tx.extend(msgs);
-    self.reregister(poll, Ready::writable(), PollOpt::edge() | PollOpt::oneshot());
+    self.reregister(poll);
   }
 
-  fn reregister(&mut self, poll: &mut Poll, ready: Ready, opts: PollOpt) {
-    poll.reregister(self.tls.as_ref().unwrap().get_ref(), CLIENT, ready, opts).unwrap();
-  }
-
-  fn send_thread(client: Arc<RwLock<Client>>, poll: Arc<Mutex<Poll>>) {
+  fn send_thread(client: Arc<Mutex<Client>>, poll: Arc<Mutex<Poll>>) {
     std::thread::spawn(move || {
       loop {
         std::thread::sleep(std::time::Duration::from_millis(250));
-        if !client.read().unwrap().state.registered {
+        if !client.lock().unwrap().state.registered {
           continue;
         }
         let now = Utc::now();
-        let mut client = client.write().unwrap();
+        let mut client = client.lock().unwrap();
         if now.signed_duration_since(client.last_ping.1).num_seconds().abs() > 15 {
           let mut poll = poll.lock().unwrap();
           client.last_ping.1 = now;

@@ -7,6 +7,9 @@ authors = ["Kyle Clemens <jkc.clemens@gmail.com>"]
 lan_clipboard = { path = "../" }
 protobuf = "1.4"
 integer-encoding = "1.0"
-native-tls = "0.1"
+# native-tls = "0.1"
+rustls = "0.11"
 mio = "0.6"
 slab = "0.4"
+webpki = "0.17"
+untrusted = "0.5"
