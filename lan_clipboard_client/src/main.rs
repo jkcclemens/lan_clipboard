@@ -198,11 +198,10 @@ impl Client {
   }
 
   fn do_tls_read(&mut self) {
-    if let Err(e) = self.session.read_tls(&mut self.tcp) {
-      panic!("read err: {}", e);
-    }
-    if let Err(e) = self.session.process_new_packets() {
-      panic!("process err (post-read): {}", e);
+    if self.session.read_tls(&mut self.tcp).is_ok() {
+      if let Err(e) = self.session.process_new_packets() {
+        panic!("process err (post-read): {}", e);
+      }
     }
   }
 
