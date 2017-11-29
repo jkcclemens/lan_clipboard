@@ -4,7 +4,7 @@ extern crate clipboard;
 extern crate rustls;
 extern crate chrono;
 extern crate mio;
-extern crate crypto_hash;
+extern crate crypto;
 extern crate parking_lot;
 
 use lan_clipboard::*;
@@ -12,6 +12,8 @@ use clipboard::{ClipboardContext, ClipboardProvider};
 use rustls::{ClientConfig, ClientSession, Session};
 use chrono::{Utc, DateTime};
 use parking_lot::Mutex;
+use crypto::sha3::Sha3;
+use crypto::digest::Digest;
 use mio::*;
 use mio::net::TcpStream;
 use std::net::{SocketAddr, ToSocketAddrs};
@@ -21,7 +23,6 @@ use std::fs::File;
 use std::io;
 
 const CLIENT: Token = Token(0);
-const ALGO: crypto_hash::Algorithm = crypto_hash::Algorithm::SHA512;
 
 #[derive(Default)]
 struct State {
@@ -222,6 +223,7 @@ impl Client {
 
   fn send_thread(client: Arc<Mutex<Client>>, poll: Arc<Mutex<Poll>>) {
     std::thread::spawn(move || {
+      let mut sha3 = Sha3::sha3_512();
       loop {
         std::thread::sleep(std::time::Duration::from_millis(250));
         if !client.lock().state.registered {
@@ -243,7 +245,10 @@ impl Client {
           Ok(c) => c.into_bytes(),
           Err(_) => continue
         };
-        let local_hash = crypto_hash::digest(ALGO, &local);
+        let mut local_hash = Vec::with_capacity(64);
+        sha3.input(&local);
+        sha3.result(&mut local_hash);
+        sha3.reset();
         if local == shared || client.last_update == local {
           continue;
         }
