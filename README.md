@@ -55,8 +55,9 @@ server's clipboard, have the server connect to itself as a client.
 
 ## Certificates? :(
 
-Hey, I want your (my) data to be safe! webpki demands it be really safe! Your certificate has to be
-x509 v3, meaning it must be issued from a CA, even if that CA is you. It must also pass SNI checks.
+Hey, I want your (and also my) data to be safe! webpki demands it be really safe! Your certificate
+has to be x509 v3, meaning it must be issued from a CA, even if that CA is you. It must also pass
+SNI checks.
 
 This means that if you're connecting to a machine locally, you'll need to issue a cert to
 `[hostname].local` and connect using that address.
