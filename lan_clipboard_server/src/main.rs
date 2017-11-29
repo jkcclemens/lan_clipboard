@@ -27,7 +27,7 @@ struct State {
 fn main() {
   let args: Vec<String> = std::env::args().skip(1).collect();
   if args.is_empty() {
-    println!("usage: server [hostname:port] [certificate pem] [key pem]");
+    println!("usage: lan_clipboard_server [hostname:port] [certificate pem] [key pem]");
     return;
   }
   let bind_addr: SocketAddr = match args[0].to_socket_addrs() {
@@ -246,6 +246,7 @@ impl Server {
     let m: Message = update.into();
 
     for (_, node) in self.nodes.iter_mut() {
+      println!("sending update to node {}", node.id);
       node.queue_message(m.clone(), poll);
     }
   }

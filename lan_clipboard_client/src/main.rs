@@ -44,7 +44,7 @@ impl State {
 fn main() {
   let args: Vec<String> = std::env::args().skip(1).collect();
   if args.len() < 4 {
-    println!("usage: client [hostname] [port] [cert file] [client name]");
+    println!("usage: lan_clipboard_client [hostname] [port] [cert file] [client name]");
     return;
   }
   let hostname = &args[0];
