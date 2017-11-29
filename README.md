@@ -16,15 +16,27 @@ the clipboard and information about clients.
 
 ## [To do](https://github.com/jkcclemens/lan_clipboard/projects/1)
 
+## Compilation
+
+For both the server and client, clone the repo, move into the necessary directory, and `cargo build --release` that sucker.
+
+The binary will be `target/release`. Run it to see usage instructions, or see below.
+
+To successfully compile, you need a few dependencies!
+
+**Server/client**
+- [protocol buffers](https://developers.google.com/protocol-buffers/), including the `protoc` binary
+
+**Client**
+- X11 (xorg-dev) on Linux only
+
 ## Usage
 
 ### Server
 
-You need one of these! Clone the repo, go into `lan_clipboard_server`, and `cargo build --release`
-that sucker.
+You need one of these!
 
-The binary will be `lan_clipboard_server` in `target/release`. It has usage instructions if you run
-it without parameters, but I'll list them here, too.
+The server has usage instructions if you run it without parameters, but I'll list them here, too.
 
 ```
 usage: lan_clipboard_server [hostname:port] [certificate pem] [key pem]
@@ -36,11 +48,9 @@ certificate chain and its private key, both in PEM format, to the server.
 
 ### Client
 
-You don't necessarily need any of these, but you need two to get any use out of this program! Clone
-the repo, go into `lan_clipboard_client` and `cargo build --release` that sucker.
+You don't necessarily need any of these, but you need two to get any use out of this program!
 
-The binary will be `lan_clipboard_client` in `target/release`. It has usage instructions if you run
-it without parameters, but I'll list them here, too.
+The client has usage instructions if you run it without parameters, but I'll list them here, too.
 
 ```
 usage: lan_clipboard_client [hostname] [port] [cert file] [client name]
