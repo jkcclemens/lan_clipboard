@@ -39,6 +39,7 @@ message Message {
 */
 message ClipboardUpdate {
   bytes contents = 1; // the contents of the clipboard
+  string kind = 2; // the kind of content on the clipboard
 }
 
 // C -> S

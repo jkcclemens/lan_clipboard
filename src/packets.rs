@@ -889,6 +889,7 @@ impl ::protobuf::reflect::ProtobufValue for Message_MessageType {
 pub struct ClipboardUpdate {
     // message fields
     pub contents: ::std::vec::Vec<u8>,
+    pub kind: ::std::string::String,
     // special fields
     unknown_fields: ::protobuf::UnknownFields,
     cached_size: ::protobuf::CachedSize,
@@ -945,6 +946,40 @@ impl ClipboardUpdate {
     fn mut_contents_for_reflect(&mut self) -> &mut ::std::vec::Vec<u8> {
         &mut self.contents
     }
+
+    // string kind = 2;
+
+    pub fn clear_kind(&mut self) {
+        self.kind.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_kind(&mut self, v: ::std::string::String) {
+        self.kind = v;
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_kind(&mut self) -> &mut ::std::string::String {
+        &mut self.kind
+    }
+
+    // Take field
+    pub fn take_kind(&mut self) -> ::std::string::String {
+        ::std::mem::replace(&mut self.kind, ::std::string::String::new())
+    }
+
+    pub fn get_kind(&self) -> &str {
+        &self.kind
+    }
+
+    fn get_kind_for_reflect(&self) -> &::std::string::String {
+        &self.kind
+    }
+
+    fn mut_kind_for_reflect(&mut self) -> &mut ::std::string::String {
+        &mut self.kind
+    }
 }
 
 impl ::protobuf::Message for ClipboardUpdate {
@@ -958,6 +993,9 @@ impl ::protobuf::Message for ClipboardUpdate {
             match field_number {
                 1 => {
                     ::protobuf::rt::read_singular_proto3_bytes_into(wire_type, is, &mut self.contents)?;
+                },
+                2 => {
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.kind)?;
                 },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
@@ -974,6 +1012,9 @@ impl ::protobuf::Message for ClipboardUpdate {
         if !self.contents.is_empty() {
             my_size += ::protobuf::rt::bytes_size(1, &self.contents);
         }
+        if !self.kind.is_empty() {
+            my_size += ::protobuf::rt::string_size(2, &self.kind);
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
         my_size
@@ -982,6 +1023,9 @@ impl ::protobuf::Message for ClipboardUpdate {
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream) -> ::protobuf::ProtobufResult<()> {
         if !self.contents.is_empty() {
             os.write_bytes(1, &self.contents)?;
+        }
+        if !self.kind.is_empty() {
+            os.write_string(2, &self.kind)?;
         }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -1032,6 +1076,11 @@ impl ::protobuf::MessageStatic for ClipboardUpdate {
                     ClipboardUpdate::get_contents_for_reflect,
                     ClipboardUpdate::mut_contents_for_reflect,
                 ));
+                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                    "kind",
+                    ClipboardUpdate::get_kind_for_reflect,
+                    ClipboardUpdate::mut_kind_for_reflect,
+                ));
                 ::protobuf::reflect::MessageDescriptor::new::<ClipboardUpdate>(
                     "ClipboardUpdate",
                     fields,
@@ -1045,6 +1094,7 @@ impl ::protobuf::MessageStatic for ClipboardUpdate {
 impl ::protobuf::Clear for ClipboardUpdate {
     fn clear(&mut self) {
         self.clear_contents();
+        self.clear_kind();
         self.unknown_fields.clear();
     }
 }
@@ -2674,25 +2724,25 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     LLO\x10\0\x12\x0e\n\nREGISTERED\x10\x01\x12\x0c\n\x08REJECTED\x10\x02\
     \x12\r\n\tNODE_TREE\x10\x03\x12\x0f\n\x0bNODE_UPDATE\x10\x04\x12\x14\n\
     \x10CLIPBOARD_UPDATE\x10\x05\x12\x08\n\x04PING\x10\x06\x12\x08\n\x04PONG\
-    \x10\x07B\x07\n\x05value\"-\n\x0fClipboardUpdate\x12\x1a\n\x08contents\
-    \x18\x01\x20\x01(\x0cR\x08contents\"5\n\x05Hello\x12\x18\n\x07version\
-    \x18\x01\x20\x01(\rR\x07version\x12\x12\n\x04name\x18\x02\x20\x01(\tR\
-    \x04name\"\x18\n\x04Ping\x12\x10\n\x03seq\x18\x01\x20\x01(\rR\x03seq\"\
-    \x7f\n\nRegistered\x12\x17\n\x07node_id\x18\x01\x20\x01(\rR\x06nodeId\
-    \x12\x1b\n\tnum_nodes\x18\x02\x20\x01(\rR\x08numNodes\x12\x1d\n\x04tree\
-    \x18\x03\x20\x01(\x0b2\t.NodeTreeR\x04tree\x12\x1c\n\tclipboard\x18\x04\
-    \x20\x01(\x0cR\tclipboard\"\x18\n\x04Pong\x12\x10\n\x03seq\x18\x01\x20\
-    \x01(\rR\x03seq\"p\n\x08NodeTree\x12*\n\x05nodes\x18\x01\x20\x03(\x0b2\
-    \x14.NodeTree.NodesEntryR\x05nodes\x1a8\n\nNodesEntry\x12\x10\n\x03key\
-    \x18\x01\x20\x01(\rR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05va\
-    lue:\x028\x01\"\x94\x01\n\nNodeUpdate\x12*\n\x04type\x18\x01\x20\x01(\
-    \x0e2\x16.NodeUpdate.UpdateTypeR\x04type\x12\x17\n\x07node_id\x18\x02\
-    \x20\x01(\rR\x06nodeId\x12\x1b\n\tnode_name\x18\x03\x20\x01(\tR\x08nodeN\
-    ame\"$\n\nUpdateType\x12\t\n\x05ADDED\x10\0\x12\x0b\n\x07REMOVED\x10\x01\
-    \"\x80\x01\n\x08Rejected\x121\n\x06reason\x18\x01\x20\x01(\x0e2\x19.Reje\
-    cted.RejectionReasonR\x06reason\"A\n\x0fRejectionReason\x12\x0f\n\x0bBAD\
-    _VERSION\x10\0\x12\x0c\n\x08BAD_NAME\x10\x01\x12\x0f\n\x0bBAD_MESSAGE\
-    \x10\x02b\x06proto3\
+    \x10\x07B\x07\n\x05value\"A\n\x0fClipboardUpdate\x12\x1a\n\x08contents\
+    \x18\x01\x20\x01(\x0cR\x08contents\x12\x12\n\x04kind\x18\x02\x20\x01(\tR\
+    \x04kind\"5\n\x05Hello\x12\x18\n\x07version\x18\x01\x20\x01(\rR\x07versi\
+    on\x12\x12\n\x04name\x18\x02\x20\x01(\tR\x04name\"\x18\n\x04Ping\x12\x10\
+    \n\x03seq\x18\x01\x20\x01(\rR\x03seq\"\x7f\n\nRegistered\x12\x17\n\x07no\
+    de_id\x18\x01\x20\x01(\rR\x06nodeId\x12\x1b\n\tnum_nodes\x18\x02\x20\x01\
+    (\rR\x08numNodes\x12\x1d\n\x04tree\x18\x03\x20\x01(\x0b2\t.NodeTreeR\x04\
+    tree\x12\x1c\n\tclipboard\x18\x04\x20\x01(\x0cR\tclipboard\"\x18\n\x04Po\
+    ng\x12\x10\n\x03seq\x18\x01\x20\x01(\rR\x03seq\"p\n\x08NodeTree\x12*\n\
+    \x05nodes\x18\x01\x20\x03(\x0b2\x14.NodeTree.NodesEntryR\x05nodes\x1a8\n\
+    \nNodesEntry\x12\x10\n\x03key\x18\x01\x20\x01(\rR\x03key\x12\x14\n\x05va\
+    lue\x18\x02\x20\x01(\tR\x05value:\x028\x01\"\x94\x01\n\nNodeUpdate\x12*\
+    \n\x04type\x18\x01\x20\x01(\x0e2\x16.NodeUpdate.UpdateTypeR\x04type\x12\
+    \x17\n\x07node_id\x18\x02\x20\x01(\rR\x06nodeId\x12\x1b\n\tnode_name\x18\
+    \x03\x20\x01(\tR\x08nodeName\"$\n\nUpdateType\x12\t\n\x05ADDED\x10\0\x12\
+    \x0b\n\x07REMOVED\x10\x01\"\x80\x01\n\x08Rejected\x121\n\x06reason\x18\
+    \x01\x20\x01(\x0e2\x19.Rejected.RejectionReasonR\x06reason\"A\n\x0fRejec\
+    tionReason\x12\x0f\n\x0bBAD_VERSION\x10\0\x12\x0c\n\x08BAD_NAME\x10\x01\
+    \x12\x0f\n\x0bBAD_MESSAGE\x10\x02b\x06proto3\
 ";
 
 static mut file_descriptor_proto_lazy: ::protobuf::lazy::Lazy<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::lazy::Lazy {

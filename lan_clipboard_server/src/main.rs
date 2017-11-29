@@ -14,7 +14,7 @@ use mio::net::{TcpListener, TcpStream};
 use slab::Slab;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::fs::File;
-use std::io;
+use std::io::{self, Read};
 use std::sync::Arc;
 
 const SERVER: Token = Token(1024);
@@ -147,7 +147,15 @@ impl Server {
       if node.session.wants_read() {
         node.do_tls_read();
       }
-      node.session.read_message()
+      node.read_to_buf();
+      let (res, pos) = {
+        let mut cursor = std::io::Cursor::new(&node.buf);
+        (cursor.read_message(), cursor.position())
+      };
+      if res.is_ok() {
+        node.buf = node.buf.split_off(pos as usize);
+      }
+      res
     };
     if let Ok(message) = res {
       match message.get_field_type() {
@@ -231,12 +239,15 @@ impl Server {
   }
 
   fn clipboard_update(&mut self, mut message: Message, poll: &mut Poll) {
+    println!("clipboard_update");
     if !message.has_clipboard_update() {
       return;
     }
 
     let mut cu = message.take_clipboard_update();
     let new = cu.take_contents();
+
+    println!("new clipboard len: {}", new.len());
 
     self.state.shared = new;
 
@@ -260,7 +271,8 @@ struct Node {
   address: SocketAddr,
   tcp: TcpStream,
   session: ServerSession,
-  tx: Vec<Message>
+  tx: Vec<Message>,
+  buf: Vec<u8>
 }
 
 impl Node {
@@ -272,7 +284,14 @@ impl Node {
       address,
       tcp,
       session,
-      tx: Vec::new()
+      tx: Vec::new(),
+      buf: Vec::new()
+    }
+  }
+
+  fn read_to_buf(&mut self) {
+    if let Err(e) = self.session.read_to_end(&mut self.buf) {
+      println!("error reading to buf: {}", e);
     }
   }
 
@@ -286,6 +305,7 @@ impl Node {
   }
 
   fn do_tls_read(&mut self) {
+    println!("do_tls_read");
     if let Err(e) = self.session.read_tls(&mut self.tcp) {
       panic!("read err: {:#?}", e);
     }

@@ -29,15 +29,14 @@ struct State {
   registered: bool,
   hello_sent: bool,
   tree: HashMap<u32, String>,
-  shared: Vec<u8>
+  shared: Vec<u8>,
+  kind: String
 }
 
 impl State {
   fn update_clipboard(&self) {
-    if let Ok(s) = String::from_utf8(self.shared.clone()) {
-      if let Ok(mut c) = ClipboardContext::new() {
-        c.set_contents(s).ok();
-      }
+    if let Ok(mut c) = ClipboardContext::new() {
+      c.set_contents(self.shared.clone(), self.kind.clone()).ok();
     }
   }
 }
@@ -135,7 +134,12 @@ fn main() {
           let mut tx = Vec::new();
           std::mem::swap(&mut client.tx, &mut tx);
           for t in tx {
-            let _ = client.session.write_message(&t); // FIXME: don't ignore errors
+            println!("writing message");
+            if let Err(e) = client.session.write_message(&t) {
+              println!("error writing message: {:?}", e);
+            } else {
+              println!("success!");
+            } // FIXME: don't ignore errors
           }
         }
         client.reregister(&mut poll.lock());
@@ -192,6 +196,7 @@ impl Client {
   }
 
   fn do_tls_write(&mut self) {
+    println!("do_tls_write");
     if let Err(e) = self.session.write_tls(&mut self.tcp) {
       panic!("write err: {}", e);
     }
@@ -241,20 +246,22 @@ impl Client {
           client.queue_message(ping.into(), &mut poll);
         }
         let shared = client.state.shared.clone();
-        let local = match client.clipboard.get_contents() {
-          Ok(c) => c.into_bytes(),
+        let (local, kind) = match client.clipboard.get_contents() {
+          Ok(c) => c,
           Err(_) => continue
         };
-        let mut local_hash = Vec::with_capacity(64);
         sha3.input(&local);
+        let mut local_hash = vec![0u8; (sha3.output_bits() + 7) / 8];
         sha3.result(&mut local_hash);
         sha3.reset();
-        if local == shared || client.last_update == local {
+        if local == shared || client.last_update == local_hash {
           continue;
         }
         let mut cu = ClipboardUpdate::new();
         cu.set_contents(local.clone());
+        cu.set_kind(kind);
         client.queue_message(cu.into(), &mut poll.lock());
+        println!("queued");
         client.last_update = local_hash;
       }
     });
@@ -269,6 +276,7 @@ impl Client {
         let mut cu = message.take_clipboard_update();
         let new = cu.take_contents();
         self.state.shared = new;
+        self.state.kind = cu.take_kind();
         self.state.update_clipboard();
       },
       Message_MessageType::REGISTERED => {
