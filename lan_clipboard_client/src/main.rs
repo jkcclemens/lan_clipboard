@@ -5,16 +5,18 @@ extern crate rustls;
 extern crate chrono;
 extern crate mio;
 extern crate crypto_hash;
+extern crate parking_lot;
 
 use lan_clipboard::*;
 use clipboard::{ClipboardContext, ClipboardProvider};
 use rustls::{ClientConfig, ClientSession, Session};
 use chrono::{Utc, DateTime};
+use parking_lot::Mutex;
 use mio::*;
 use mio::net::TcpStream;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::fs::File;
 use std::io;
 
@@ -100,15 +102,15 @@ fn main() {
   let mut events = Events::with_capacity(1024);
 
   loop {
-    poll.lock().unwrap().poll(&mut events, Some(std::time::Duration::from_millis(100))).expect("could not poll");
+    poll.lock().poll(&mut events, Some(std::time::Duration::from_millis(100))).expect("could not poll");
     for event in events.iter() {
-      let mut client = client.lock().unwrap();
+      let mut client = client.lock();
 
       if !client.state.registered && !client.state.hello_sent {
         let mut hello: Hello = Hello::new();
         hello.set_version(1);
         hello.set_name(name.clone());
-        client.queue_message(hello.into(), &mut poll.lock().unwrap());
+        client.queue_message(hello.into(), &mut poll.lock());
         client.state.hello_sent = true;
       }
 
@@ -118,9 +120,9 @@ fn main() {
         }
 
         if let Ok(message) = client.session.read_message() {
-          client.receive(message, &mut poll.lock().unwrap());
+          client.receive(message, &mut poll.lock());
         }
-        client.reregister(&mut poll.lock().unwrap());
+        client.reregister(&mut poll.lock());
       }
 
       if event.readiness().is_writable() {
@@ -135,7 +137,7 @@ fn main() {
             let _ = client.session.write_message(&t); // FIXME: don't ignore errors
           }
         }
-        client.reregister(&mut poll.lock().unwrap());
+        client.reregister(&mut poll.lock());
       }
     }
   }
@@ -222,13 +224,13 @@ impl Client {
     std::thread::spawn(move || {
       loop {
         std::thread::sleep(std::time::Duration::from_millis(250));
-        if !client.lock().unwrap().state.registered {
+        if !client.lock().state.registered {
           continue;
         }
         let now = Utc::now();
-        let mut client = client.lock().unwrap();
+        let mut client = client.lock();
         if now.signed_duration_since(client.last_ping.1).num_seconds().abs() > 15 {
-          let mut poll = poll.lock().unwrap();
+          let mut poll = poll.lock();
           client.last_ping.1 = now;
           client.last_ping.0 = client.last_ping.0 + 1;
           let mut ping = Ping::new();
@@ -247,7 +249,7 @@ impl Client {
         }
         let mut cu = ClipboardUpdate::new();
         cu.set_contents(local.clone());
-        client.queue_message(cu.into(), &mut poll.lock().unwrap());
+        client.queue_message(cu.into(), &mut poll.lock());
         client.last_update = local_hash;
       }
     });
