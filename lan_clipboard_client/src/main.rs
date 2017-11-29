@@ -117,13 +117,15 @@ fn main() {
 
       if event.readiness().is_readable() {
         if client.session.wants_read() {
-          client.do_tls_read();
+          match client.do_tls_read() {
+            Ok(0) if !client.session.wants_write() => break 'outer,
+            Err(_) => break 'outer,
+            _ => {}
+          }
         }
 
-        match client.read_to_buf() {
-          Ok(0) if !client.session.wants_write() => break 'outer,
-          Err(_) => break 'outer,
-          _ => {}
+        if let Err(_) = client.read_to_buf() {
+          break 'outer;
         }
         let (res, pos) = {
           let mut cursor = std::io::Cursor::new(&mut client.buf);
@@ -227,12 +229,10 @@ impl Client {
     }
   }
 
-  fn do_tls_read(&mut self) {
-    if self.session.read_tls(&mut self.tcp).is_ok() {
-      if let Err(e) = self.session.process_new_packets() {
-        panic!("process err (post-read): {}", e);
-      }
-    }
+  fn do_tls_read(&mut self) -> io::Result<usize> {
+    let read = self.session.read_tls(&mut self.tcp)?;
+    self.session.process_new_packets().map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    Ok(read)
   }
 
   fn queue_message(&mut self, msg: Message, poll: &mut Poll) {

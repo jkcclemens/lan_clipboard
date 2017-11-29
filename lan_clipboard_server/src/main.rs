@@ -159,13 +159,13 @@ impl Server {
     let res = {
       let node = &mut self.nodes[tok.0];
       if node.session.wants_read() {
-        node.do_tls_read();
+        match node.do_tls_read() {
+          Ok(0) if !node.session.wants_write() => return Err(io::Error::from(io::ErrorKind::BrokenPipe)),
+          Err(e) => return Err(e),
+          _ => {}
+        }
       }
-      match node.read_to_buf() {
-        Ok(0) if !node.session.wants_write() => return Err(io::Error::from(io::ErrorKind::BrokenPipe)),
-        Err(e) => return Err(e),
-        _ => {}
-      }
+      node.read_to_buf()?;
       let (res, pos) = {
         let mut cursor = std::io::Cursor::new(&node.buf);
         (cursor.read_message(), cursor.position())
@@ -319,13 +319,10 @@ impl Node {
     }
   }
 
-  fn do_tls_read(&mut self) {
-    if let Err(e) = self.session.read_tls(&mut self.tcp) {
-      panic!("read err: {:#?}", e);
-    }
-    if let Err(e) = self.session.process_new_packets() {
-      panic!("process err (post-read): {:#?}", e);
-    }
+  fn do_tls_read(&mut self) -> io::Result<usize> {
+    let read = self.session.read_tls(&mut self.tcp)?;
+    self.session.process_new_packets().map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    Ok(read)
   }
 
   fn queue_message(&mut self, msg: Message, poll: &mut Poll) {
