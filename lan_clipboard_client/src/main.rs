@@ -20,7 +20,7 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::fs::File;
-use std::io;
+use std::io::{self, Read};
 
 const CLIENT: Token = Token(0);
 
@@ -102,7 +102,7 @@ fn main() {
 
   let mut events = Events::with_capacity(1024);
 
-  loop {
+  'outer: loop {
     poll.lock().poll(&mut events, Some(std::time::Duration::from_millis(100))).expect("could not poll");
     for event in events.iter() {
       let mut client = client.lock();
@@ -120,7 +120,19 @@ fn main() {
           client.do_tls_read();
         }
 
-        if let Ok(message) = client.session.read_message() {
+        match client.read_to_buf() {
+          Ok(0) if !client.session.wants_write() => break 'outer,
+          Err(_) => break 'outer,
+          _ => {}
+        }
+        let (res, pos) = {
+          let mut cursor = std::io::Cursor::new(&mut client.buf);
+          (cursor.read_message(), cursor.position())
+        };
+        if res.is_ok() {
+          client.buf = client.buf.split_off(pos as usize);
+        }
+        if let Ok(message) = res {
           client.receive(message, &mut poll.lock());
         }
         client.reregister(&mut poll.lock());
@@ -142,6 +154,8 @@ fn main() {
       }
     }
   }
+  println!("An error occurred when communicating with the server. Shutting donw.");
+  client.lock().hangup(&mut poll.lock());
 }
 
 struct Client {
@@ -149,6 +163,7 @@ struct Client {
   session: ClientSession,
   state: State,
   tx: Vec<Message>,
+  buf: Vec<u8>,
   last_ping: (u32, DateTime<Utc>),
   last_update: Vec<u8>,
   clipboard: ClipboardContext
@@ -161,10 +176,22 @@ impl Client {
       session,
       state: State::default(),
       tx: Vec::new(),
+      buf: Vec::new(),
       last_ping: (0, Utc::now()),
       last_update: Vec::new(),
       clipboard: ClipboardContext::new().unwrap()
     }
+  }
+
+  fn read_to_buf(&mut self) -> io::Result<usize> {
+    self.session.read_to_end(&mut self.buf)
+  }
+
+  fn hangup(&mut self, poll: &mut Poll) {
+    if let Err(e) = poll.deregister(&self.tcp) {
+      println!("error deregistering: {}", e);
+    }
+    self.tcp.shutdown(std::net::Shutdown::Both).ok();
   }
 
   /// What IO events we're currently waiting for,

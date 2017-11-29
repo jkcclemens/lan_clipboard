@@ -14,7 +14,7 @@ use mio::net::{TcpListener, TcpStream};
 use slab::Slab;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::fs::File;
-use std::io;
+use std::io::{self, Read};
 use std::sync::Arc;
 
 const SERVER: Token = Token(1024);
@@ -104,7 +104,10 @@ fn main() {
           i => server.node_writable(&mut conn_poll, i)
         };
         if let Err(e) = res {
-          println!("error writing: {}", e);
+          println!("error writing from node {}: {}\nshutting down that node", event.token().0, e);
+          server.nodes[event.token().0].shutting_down = true;
+          server.hangup(&mut conn_poll, event.token());
+          server.nodes.retain(|token, _| token != event.token().0);
         }
       }
 
@@ -114,7 +117,10 @@ fn main() {
           i => server.node_readable(&mut conn_poll, i)
         };
         if let Err(e) = res {
-          println!("error reading: {}", e);
+          println!("error reading from node {}: {}\nshutting down that node", event.token().0, e);
+          server.nodes[event.token().0].shutting_down = true;
+          server.hangup(&mut conn_poll, event.token());
+          server.nodes.retain(|token, _| token != event.token().0);
         }
       }
     }
@@ -141,13 +147,33 @@ impl Server {
     Ok(())
   }
 
+  fn hangup(&mut self, poll: &mut Poll, tok: Token) {
+    let node: &mut Node = &mut self.nodes[tok.0];
+    if let Err(e) = poll.deregister(&node.tcp) {
+      println!("error deregistering: {}", e);
+    }
+    node.tcp.shutdown(std::net::Shutdown::Both).ok();
+  }
+
   fn node_readable(&mut self, poll: &mut Poll, tok: Token) -> io::Result<()> {
     let res = {
       let node = &mut self.nodes[tok.0];
       if node.session.wants_read() {
         node.do_tls_read();
       }
-      node.session.read_message()
+      match node.read_to_buf() {
+        Ok(0) if !node.session.wants_write() => return Err(io::Error::from(io::ErrorKind::BrokenPipe)),
+        Err(e) => return Err(e),
+        _ => {}
+      }
+      let (res, pos) = {
+        let mut cursor = std::io::Cursor::new(&node.buf);
+        (cursor.read_message(), cursor.position())
+      };
+      if res.is_ok() {
+        node.buf = node.buf.split_off(pos as usize);
+      }
+      res
     };
     if let Ok(message) = res {
       match message.get_field_type() {
@@ -260,7 +286,9 @@ struct Node {
   address: SocketAddr,
   tcp: TcpStream,
   session: ServerSession,
-  tx: Vec<Message>
+  tx: Vec<Message>,
+  buf: Vec<u8>,
+  shutting_down: bool
 }
 
 impl Node {
@@ -272,8 +300,14 @@ impl Node {
       address,
       tcp,
       session,
-      tx: Vec::new()
+      tx: Vec::new(),
+      buf: Vec::new(),
+      shutting_down: false
     }
+  }
+
+  fn read_to_buf(&mut self) -> io::Result<usize> {
+    self.session.read_to_end(&mut self.buf)
   }
 
   fn do_tls_write(&mut self) {
@@ -337,9 +371,11 @@ impl Node {
     }
     {
       for t in self.tx.drain(..) {
-        if let Err(e) = self.session.write_message(&t) {
-          println!("error writing: {:?}", e);
-        } // FIXME: don't ignore errors
+        self.session.write_message(&t)
+          .map_err(|e| match e {
+            MessageError::Io(e) => e,
+            MessageError::Protobuf(e) => io::Error::new(io::ErrorKind::Other, e)
+          })?;
       }
     }
     Ok(())
