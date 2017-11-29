@@ -21,7 +21,7 @@ the clipboard and information about clients.
 ### No binary
 
 The current implementation of lan_clipboard does not support binary clipboard contents. See
-https://github.com/jkcclemens/lan_clipboard/issues/7.
+[this issue](https://github.com/jkcclemens/lan_clipboard/issues/7).
 
 ### Internet
 
