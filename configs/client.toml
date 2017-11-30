@@ -13,6 +13,8 @@
 hostname = ""
 # (required, cli) The port of the server to connect to.
 port = 0
+# (required, cli) The name to register with the server.
+name = ""
 
 [certificate]
 # (required, cli) The certificate chain file location. This must match the chain the server is

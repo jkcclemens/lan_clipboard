@@ -6,6 +6,18 @@ extern crate chrono;
 extern crate mio;
 extern crate crypto;
 extern crate parking_lot;
+extern crate libc;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
+extern crate toml;
+#[macro_use]
+extern crate clap;
+#[cfg(not(windows))]
+extern crate daemonize;
+
+#[cfg(not(windows))]
+use daemonize::Daemonize;
 
 use lan_clipboard::*;
 use clipboard::{ClipboardContext, ClipboardProvider};
@@ -21,6 +33,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::fs::File;
 use std::io::{self, Read};
+
+mod config;
+mod cli;
+
+use config::Config;
 
 const CLIENT: Token = Token(0);
 
@@ -43,20 +60,18 @@ impl State {
 }
 
 fn main() {
-  let args: Vec<String> = std::env::args().skip(1).collect();
-  if args.len() < 4 {
-    println!("usage: lan_clipboard_client [hostname] [port] [cert file] [client name]");
-    return;
-  }
-  let hostname = &args[0];
-  let port: u16 = match args[1].parse() {
-    Ok(p) => p,
+  let app_config: Config = match cli::load_config(&cli::process_args()) {
+    Ok(c) => c,
     Err(e) => {
-      println!("Invalid port: {}", e);
+      println!("{}", e);
       return;
     }
   };
-  let addr: SocketAddr = match format!("{}:{}", hostname, port).to_socket_addrs() {
+
+  let hostname = app_config.connection.hostname.as_ref().unwrap();
+  let name = app_config.connection.name.as_ref().unwrap();
+
+  let addr: SocketAddr = match format!("{}:{}", hostname, app_config.connection.port.unwrap()).to_socket_addrs() {
     Ok(mut s) => match s.next() {
       Some(s) => s,
       None => {
@@ -69,10 +84,8 @@ fn main() {
       return;
     }
   };
-  let cert = &args[2];
-  let name = args[3..].join(" ");
 
-  let f = match File::open(cert) {
+  let f = match File::open(app_config.certificate.file.as_ref().unwrap()) {
     Ok(f) => f,
     Err(e) => {
       println!("could not open cert file: {}", e);
@@ -88,6 +101,8 @@ fn main() {
   }
   let config = Arc::new(config);
   let session = ClientSession::new(&config, hostname);
+
+  handle_daemon(&app_config);
 
   let poll = Poll::new().unwrap();
 
@@ -158,6 +173,37 @@ fn main() {
   }
   println!("An error occurred when communicating with the server. Shutting donw.");
   client.lock().hangup(&mut poll.lock());
+}
+
+#[cfg(not(windows))]
+fn handle_daemon(config: &Config) {
+  if config.daemon.enabled != Some(true) {
+    return;
+  }
+  let mut d = Daemonize::new();
+  if let Some(ref pid_file) = config.daemon.pid_file {
+    d = d.pid_file(pid_file);
+  }
+  if let Some(chown_pid_file) = config.daemon.chown_pid_file {
+    d = d.chown_pid_file(chown_pid_file);
+  }
+  if let Some(user) = config.daemon.user {
+    d = d.user(user);
+  }
+  if let Some(group) = config.daemon.group {
+    d = d.group(group);
+  }
+  d
+    .working_directory("./")
+    .start()
+    .unwrap();
+}
+
+#[cfg(windows)]
+fn handle_daemon(config: &Config) {
+  if config.daemon.enabled == Some(true) {
+    println!("daemonization is not supported on Windows");
+  }
 }
 
 struct Client {
