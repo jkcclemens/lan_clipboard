@@ -6,6 +6,18 @@ extern crate mio;
 extern crate slab;
 extern crate untrusted;
 extern crate webpki;
+extern crate libc;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
+extern crate toml;
+#[macro_use]
+extern crate clap;
+#[cfg(not(windows))]
+extern crate daemonize;
+
+#[cfg(not(windows))]
+use daemonize::Daemonize;
 
 use lan_clipboard::*;
 use rustls::{ServerConfig, ServerSession, Session};
@@ -17,36 +29,37 @@ use std::fs::File;
 use std::io::{self, Read};
 use std::sync::Arc;
 
+mod config;
+mod cli;
+
+use config::Config;
+
 const SERVER: Token = Token(1024);
 
-#[derive(Default)]
-struct State {
-  shared: Vec<u8>
-}
-
 fn main() {
-  let args: Vec<String> = std::env::args().skip(1).collect();
-  if args.is_empty() {
-    println!("usage: lan_clipboard_server [hostname:port] [certificate pem] [key pem]");
-    return;
-  }
-  let bind_addr: SocketAddr = match args[0].to_socket_addrs() {
+  let app_config: Config = match cli::load_config(&cli::process_args()) {
+    Ok(c) => c,
+    Err(e) => {
+      println!("{}", e);
+      return;
+    }
+  };
+
+  let bind_addr: SocketAddr = match format!("{}:{}", app_config.connection.hostname.as_ref().unwrap(), app_config.connection.port.unwrap()).to_socket_addrs() {
     Ok(mut b) => match b.next() {
       Some(b) => b,
       None => {
-        println!("No addresses provided.");
+        println!("no addresses provided");
         return;
       }
     },
     Err(e) => {
-      println!("Invalid hostname:port: {}", e);
+      println!("invalid hostname:port: {}", e);
       return;
     }
-  }; // ("0.0.0.0", 38153)
-  let certs = &args[1];
-  let keys = &args[2];
+  };
 
-  let f = match File::open(certs) {
+  let f = match File::open(app_config.certificate.file.as_ref().unwrap()) {
     Ok(f) => f,
     Err(e) => {
       println!("could not open cert: {}", e);
@@ -55,7 +68,7 @@ fn main() {
   };
   let certs = rustls::internal::pemfile::certs(&mut io::BufReader::new(f)).unwrap();
   if certs.is_empty() {
-    println!("No certs found.");
+    println!("no certs found");
     return;
   }
   if let Err(e) = webpki::EndEntityCert::from(untrusted::Input::from(&certs[0].0)) {
@@ -63,7 +76,7 @@ fn main() {
     return;
   }
 
-  let f = match File::open(keys) {
+  let f = match File::open(app_config.certificate.key.as_ref().unwrap()) {
     Ok(f) => f,
     Err(e) => {
       println!("could not open key: {}", e);
@@ -72,10 +85,12 @@ fn main() {
   };
   let mut keys = rustls::internal::pemfile::rsa_private_keys(&mut io::BufReader::new(f)).unwrap();
   if keys.is_empty() {
-    println!("No keys found.");
+    println!("no keys found");
     return;
   }
   let key = keys.remove(0);
+
+  handle_daemon(&app_config);
 
   let mut conn_poll = Poll::new().unwrap();
 
@@ -125,6 +140,42 @@ fn main() {
       }
     }
   }
+}
+
+#[cfg(not(windows))]
+fn handle_daemon(config: &Config) {
+  if config.daemon.enabled != Some(true) {
+    return;
+  }
+  let mut d = Daemonize::new();
+  if let Some(ref pid_file) = config.daemon.pid_file {
+    d = d.pid_file(pid_file);
+  }
+  if let Some(chown_pid_file) = config.daemon.chown_pid_file {
+    d = d.chown_pid_file(chown_pid_file);
+  }
+  if let Some(user) = config.daemon.user {
+    d = d.user(user);
+  }
+  if let Some(group) = config.daemon.group {
+    d = d.group(group);
+  }
+  d
+    .working_directory("./")
+    .start()
+    .unwrap();
+}
+
+#[cfg(windows)]
+fn handle_daemon(config: &Config) {
+  if config.daemon.enabled == Some(true) {
+    println!("daemonization is not supported on Windows");
+  }
+}
+
+#[derive(Default)]
+struct State {
+  shared: Vec<u8>
 }
 
 struct Server {

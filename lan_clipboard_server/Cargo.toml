@@ -1,7 +1,8 @@
 [package]
 name = "lan_clipboard_server"
 version = "0.1.0"
-authors = ["Kyle Clemens <jkc.clemens@gmail.com>"]
+authors = ["Kyle Clemens <lan_clipboard@kyleclemens.com>"]
+description = "The server component of the lan_clipboard clipboard sharer."
 
 [dependencies]
 lan_clipboard = { path = "../" }
@@ -12,3 +13,11 @@ mio = "0.6"
 slab = "0.4"
 webpki = "0.17"
 untrusted = "0.5"
+libc = "0.2"
+serde = "1.0"
+serde_derive = "1.0"
+toml = "0.4"
+clap = "2.28"
+
+[target."cfg(not(windows))".dependencies]
+daemonize = "0.2"

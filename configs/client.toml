@@ -1,0 +1,35 @@
+# Client config
+
+# All values are preceded by whether they are required or optional. For any optional value,
+# commenting or removing the line will leave that value unspecified. If an optional value is
+# unspecified, it will use a default value, specified after a colon in the optional tag.
+
+# All values are also mentioned if they can be overwritten with command-line arguments. If this is
+# true, then values may be omitted in the same manner as an optional value, but they must be
+# specified on the command-line.
+
+[connection]
+# (required, cli) The hostname of the server to connect to.
+hostname = ""
+# (required, cli) The port of the server to connect to.
+port = 0
+
+[certificate]
+# (required, cli) The certificate chain file location. This must match the chain the server is
+# using.
+file = ""
+
+[daemon]
+# (optional: false, cli) Whether to use daemon mode. If true, the client will fork into the
+# background.
+# Note that daemon mode is not available on Windows.
+enabled = false
+# (optional: no PID file) The file to store the daemon's PID in.
+pid_file = ""
+# (optional: false) Whether to change the owner of the PID file to the user and group the daemon is
+# running as.
+chown_pid_file = false
+# (optional: user that started process) The user to run the daemon as.
+user = 0
+# (optional: group of user that started process) The group to run the daemon as.
+group = 0

@@ -1,0 +1,42 @@
+# Server config
+
+# All values are preceded by whether they are required or optional. For any optional value,
+# commenting or removing the line will leave that value unspecified. If an optional value is
+# unspecified, it will use a default value, specified after a colon in the optional tag.
+
+# All values are also mentioned if they can be overwritten with command-line arguments. If this is
+# true, then values may be omitted in the same manner as an optional value, but they must be
+# specified on the command-line.
+
+# All file locations can be absolute or relative from where the binary is executed.
+
+[connection]
+# (required, cli) The hostname to bind on.
+hostname = "localhost"
+# (required, cli) The port to bind on.
+port = 38153
+
+[certificate]
+# (required, cli) The certificate chain file location. It should be in PEM format.
+file = "cert.pem"
+# (required, cli) The certificate key location. It should be in PEM format.
+key = "key.pem"
+
+[clipboard]
+# (optional: no limit) Maximum size of the clipboard in bytes.
+# max_size = 10485760
+
+[daemon]
+# (optional: false, cli) Whether to use daemon mode. If true, the server will fork into the
+# background.
+# Note that daemon mode is not available on Windows.
+enabled = false
+# (optional: no PID file) The file to store the daemon's PID in.
+pid_file = "server.pid"
+# (optional: false) Whether to change the owner of the PID file to the user and group the daemon is
+# running as.
+chown_pid_file = false
+# (optional: user that started process) The user to run the daemon as.
+# user = 0
+# (optional: group of user that started process) The group to run the daemon as.
+# group = 0

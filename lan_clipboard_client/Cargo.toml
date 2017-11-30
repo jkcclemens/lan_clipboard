@@ -1,7 +1,8 @@
 [package]
 name = "lan_clipboard_client"
 version = "0.1.0"
-authors = ["Kyle Clemens <jkc.clemens@gmail.com>"]
+authors = ["Kyle Clemens <lan_clipboard@kyleclemens.com>"]
+description = "The client component of the lan_clipboard clipboard sharer."
 
 [dependencies]
 lan_clipboard = { path = "../" }
