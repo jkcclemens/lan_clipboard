@@ -10,16 +10,16 @@
 
 [connection]
 # (required, cli) The hostname of the server to connect to.
-hostname = ""
+hostname = "localhost"
 # (required, cli) The port of the server to connect to.
-port = 0
+port = 38153
 # (required, cli) The name to register with the server.
-name = ""
+name = "OS name"
 
 [certificate]
 # (required, cli) The certificate chain file location. This must match the chain the server is
 # using.
-file = ""
+file = "cert.pem"
 
 [daemon]
 # (optional: false, cli) Whether to use daemon mode. If true, the client will fork into the
@@ -27,11 +27,11 @@ file = ""
 # Note that daemon mode is not available on Windows.
 enabled = false
 # (optional: no PID file) The file to store the daemon's PID in.
-pid_file = ""
+pid_file = "client.pid"
 # (optional: false) Whether to change the owner of the PID file to the user and group the daemon is
 # running as.
 chown_pid_file = false
 # (optional: user that started process) The user to run the daemon as.
-user = 0
+# user = 0
 # (optional: group of user that started process) The group to run the daemon as.
-group = 0
+# group = 0
