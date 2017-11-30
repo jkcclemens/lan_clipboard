@@ -9,6 +9,8 @@ pub fn process_args<'a>() -> ArgMatches<'a> {
     .version(crate_version!())
     .author(crate_authors!())
     .about(crate_description!())
+    .version_message("print version information")
+    .help_message("print help information")
     .arg(Arg::with_name("config")
       .short("c")
       .long("config")
