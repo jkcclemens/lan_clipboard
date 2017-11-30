@@ -122,7 +122,7 @@ fn main() {
           println!("error writing from node {}: {}\nshutting down that node", event.token().0, e);
           server.nodes[event.token().0].shutting_down = true;
           server.hangup(&mut conn_poll, event.token());
-          server.nodes.retain(|token, _| token != event.token().0);
+          server.nodes.remove(event.token().0);
         }
       }
 
@@ -135,7 +135,7 @@ fn main() {
           println!("error reading from node {}: {}\nshutting down that node", event.token().0, e);
           server.nodes[event.token().0].shutting_down = true;
           server.hangup(&mut conn_poll, event.token());
-          server.nodes.retain(|token, _| token != event.token().0);
+          server.nodes.remove(event.token().0);
         }
       }
     }
