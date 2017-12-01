@@ -171,7 +171,7 @@ fn main() {
       }
     }
   }
-  println!("An error occurred when communicating with the server. Shutting donw.");
+  println!("An error occurred when communicating with the server. Shutting down.");
   client.lock().hangup(&mut poll.lock());
 }
 
