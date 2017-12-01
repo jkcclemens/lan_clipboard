@@ -1,16 +1,5 @@
-#[cfg(not(windows))]
-use libc::{uid_t, gid_t};
+use daemon::{Uid, Gid};
 use std::path::PathBuf;
-
-#[cfg(not(windows))]
-type Uid = uid_t;
-#[cfg(windows)]
-type Uid = u32;
-
-#[cfg(not(windows))]
-type Gid = gid_t;
-#[cfg(windows)]
-type Gid = u32;
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
