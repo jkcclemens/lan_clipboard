@@ -96,7 +96,7 @@ pub fn load_config<'a>(args: &ArgMatches<'a>) -> Result<Config, String> {
   if args.is_present("daemon") {
     config.daemon.enabled = Some(true);
   }
-  if args.is_present("no-daemon") {
+  if args.is_present("no_daemon") {
     config.daemon.enabled = Some(false);
   }
 
