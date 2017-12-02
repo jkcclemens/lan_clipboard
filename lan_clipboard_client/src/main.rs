@@ -115,7 +115,7 @@ fn main() {
 
   let client = Client::new(connection, session);
   let client = Arc::new(Mutex::new(client));
-  Client::send_thread(client.clone(), poll.clone());
+  Client::send_thread(Arc::clone(&client), Arc::clone(&poll));
 
   let mut events = Events::with_capacity(1024);
 
@@ -141,7 +141,7 @@ fn main() {
           }
         }
 
-        if let Err(_) = client.read_to_buf() {
+        if client.read_to_buf().is_err() {
           break 'outer;
         }
         let (res, pos) = {
@@ -310,7 +310,7 @@ impl Client {
         if now.signed_duration_since(client.last_ping.1).num_seconds().abs() > 15 {
           let mut poll = poll.lock();
           client.last_ping.1 = now;
-          client.last_ping.0 = client.last_ping.0 + 1;
+          client.last_ping.0 += 1;
           let mut ping = Ping::new();
           ping.set_seq(client.last_ping.0);
           println!("ping {}", client.last_ping.0);
