@@ -12,6 +12,7 @@ message Message {
     CLIPBOARD_UPDATE = 5;
     PING = 6;
     PONG = 7;
+    HANGING_UP = 8;
   }
 
   MessageType type = 1;
@@ -25,6 +26,7 @@ message Message {
     ClipboardUpdate clipboard_update = 7;
     Ping ping = 8;
     Pong pong = 9;
+    HangingUp hanging_up = 10;
   }
 }
 
@@ -74,6 +76,7 @@ message Registered {
   uint32 num_nodes = 2; // number of nodes in the tree
   NodeTree tree = 3; // the node tree, updated with this client to be included
   bytes clipboard = 4; // the current shared clipboard
+  uint32 max_message_size = 5; // the maximum size
 }
 
 /*
@@ -124,4 +127,20 @@ message Rejected {
   }
 
   RejectionReason reason = 1; // the reason the client was rejected
+}
+
+/*
+* A HangingUp message is sent by the server to the client if the server decides to cease
+* communications with the client at any point.
+*
+* It should be assumed by the client that any further communication with the server will be
+* impossible on the current connection.
+*/
+message HangingUp {
+  enum HangUpReason {
+    MESSAGE_TOO_LARGE = 0;
+    INVALID_MESSAGE = 1;
+  }
+
+  HangUpReason reason = 1; // the reason for the hang-up
 }

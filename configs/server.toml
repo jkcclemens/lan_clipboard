@@ -15,6 +15,16 @@
 hostname = "localhost"
 # (required, cli) The port to bind on.
 port = 38153
+# (required) The maximum size, in bytes, for a message. Also known as the maximum message buffer
+# size in the memory for each message per client. If a client attempts to send a message larger
+# than this size, the server will hang up on the client. The maximum possible size is 4,294,967,295
+# bytes, or 4 GiB, but it is highly discouraged to use anything about 50 MiB.
+# 20,971,520 bytes is 20 MiB.
+max_message_size = 20971520
+# (optional: no limit) The maximum number of clients the server will accept. If a client attempts to
+# connect to the server while the maximum number of clients is already connected, the server will
+# hang up on the new client.
+max_clients = 4
 
 [certificate]
 # (required, cli) The certificate chain file location. It should be in PEM format.

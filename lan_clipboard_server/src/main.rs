@@ -15,6 +15,8 @@ extern crate toml;
 extern crate clap;
 #[cfg(not(windows))]
 extern crate daemonize;
+#[macro_use]
+extern crate matches;
 extern crate snap;
 
 use rustls::ServerConfig;
@@ -90,6 +92,7 @@ fn inner() -> Result<(), String> {
   let mut server = Server {
     listener,
     config,
+    app_config,
     nodes: Slab::with_capacity(4),
     state: Default::default()
   };
@@ -119,7 +122,8 @@ fn inner() -> Result<(), String> {
       if event.readiness().is_readable() {
         let res = match event.token() {
           SERVER => server.accept(&mut conn_poll),
-          i => server.node_readable(&mut conn_poll, i)
+          i if server.nodes.contains(i.0) => server.node_readable(&mut conn_poll, i),
+          _ => continue // we hung up, but there were still events
         };
         match res {
           Err(ref e) if token == SERVER => {

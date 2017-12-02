@@ -11,10 +11,14 @@ pub struct Config {
 }
 
 #[derive(Debug, Default, Deserialize)]
-#[serde(default)]
 pub struct Connection {
+  #[serde(default)]
   pub hostname: Option<String>,
-  pub port: Option<u16>
+  #[serde(default)]
+  pub port: Option<u16>,
+  pub max_message_size: u32,
+  #[serde(default)]
+  pub max_clients: Option<usize>
 }
 
 #[derive(Debug, Default, Deserialize)]

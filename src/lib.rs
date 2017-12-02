@@ -67,3 +67,4 @@ into_msg!(NodeUpdate, NODE_UPDATE, set_node_update);
 into_msg!(ClipboardUpdate, CLIPBOARD_UPDATE, set_clipboard_update);
 into_msg!(Ping, PING, set_ping);
 into_msg!(Pong, PONG, set_pong);
+into_msg!(HangingUp, HANGING_UP, set_hanging_up);

@@ -8,7 +8,7 @@ use std::io::{self, Read, Cursor};
 use std::net::Shutdown;
 use std::sync::Arc;
 
-pub const SERVER: Token = Token(1024);
+use config::Config;
 
 pub mod node;
 pub mod state;
@@ -16,9 +16,12 @@ pub mod state;
 use self::node::Node;
 use self::state::State;
 
+pub const SERVER: Token = Token(1024);
+
 pub struct Server {
   pub listener: TcpListener,
   pub config: Arc<ServerConfig>,
+  pub app_config: Config,
   pub nodes: Slab<Node>,
   pub state: State
 }
@@ -26,6 +29,12 @@ pub struct Server {
 impl Server {
   pub fn accept(&mut self, poll: &mut Poll) -> io::Result<()> {
     let (sock, addr) = self.listener.accept()?;
+    if let Some(max_clients) = self.app_config.connection.max_clients {
+      if self.nodes.len() >= max_clients {
+        sock.shutdown(Shutdown::Both).ok();
+        return Ok(());
+      }
+    }
     let entry: VacantEntry<_> = self.nodes.vacant_entry();
     let key = entry.key();
     let token = Token(key);
@@ -73,6 +82,10 @@ impl Server {
   pub fn node_readable(&mut self, poll: &mut Poll, tok: Token) -> io::Result<()> {
     let res = {
       let node = &mut self.nodes[tok.0];
+      if node.shutting_down {
+        // ignore reading if we're hanging up on them
+        return Ok(());
+      }
       if node.session.wants_read() {
         match node.do_tls_read() {
           Ok(0) if !node.session.wants_write() => return Err(io::Error::from(io::ErrorKind::BrokenPipe)),
@@ -81,11 +94,25 @@ impl Server {
         }
       }
       node.read_to_buf()?;
+      if node.buf.len() > self.app_config.connection.max_message_size as usize {
+        node.shutting_down = true;
+        let mut hup: HangingUp = HangingUp::new();
+        hup.set_reason(HangingUp_HangUpReason::MESSAGE_TOO_LARGE);
+        node.queue_message(hup.into(), poll)?;
+        return Ok(());
+      }
       let (res, pos) = {
         let mut cursor = Cursor::new(&node.buf);
         (SnappyReader::new(cursor.by_ref()).read_message(), cursor.position())
       };
-      if res.is_ok() {
+      if let Err(MessageError::Protobuf(_)) = res {
+        node.shutting_down = true;
+        let mut hup: HangingUp = HangingUp::new();
+        hup.set_reason(HangingUp_HangUpReason::INVALID_MESSAGE);
+        node.queue_message(hup.into(), poll)?;
+        return Ok(());
+      }
+      if res.is_ok() || matches!(res, Err(MessageError::Protobuf(_))) {
         node.buf = node.buf.split_off(pos as usize);
       }
       res
@@ -160,14 +187,16 @@ impl Server {
       n.queue_message(num.clone(), poll)?;
     }
 
-    let mut n_tree = NodeTree::new();
-    n_tree.set_nodes(self.nodes.iter().map(|(_, node)| (node.id, node.name.clone().unwrap_or_default())).collect());
-
+    let mut n_tree: NodeTree = NodeTree::new();
+    n_tree.set_nodes(self.nodes.iter()
+      .filter(|&(_, node)| node.token == token || node.registered)
+      .map(|(_, node)| (node.id, node.name.clone().unwrap_or_default())).collect());
     let mut reg: Registered = Registered::new();
     reg.set_node_id(token.0 as u32);
-    reg.set_num_nodes(self.nodes.len() as u32);
+    reg.set_num_nodes(n_tree.nodes.len() as u32);
     reg.set_tree(n_tree);
     reg.set_clipboard(Vec::new());
+    reg.set_max_message_size(self.app_config.connection.max_message_size);
 
     self.nodes[token.0].registered = true;
     self.nodes[token.0].queue_message(reg.into(), poll)

@@ -45,6 +45,7 @@ pub enum Message_oneof_value {
     clipboard_update(ClipboardUpdate),
     ping(Ping),
     pong(Pong),
+    hanging_up(HangingUp),
 }
 
 impl Message {
@@ -476,6 +477,55 @@ impl Message {
             _ => Pong::default_instance(),
         }
     }
+
+    // .HangingUp hanging_up = 10;
+
+    pub fn clear_hanging_up(&mut self) {
+        self.value = ::std::option::Option::None;
+    }
+
+    pub fn has_hanging_up(&self) -> bool {
+        match self.value {
+            ::std::option::Option::Some(Message_oneof_value::hanging_up(..)) => true,
+            _ => false,
+        }
+    }
+
+    // Param is passed by value, moved
+    pub fn set_hanging_up(&mut self, v: HangingUp) {
+        self.value = ::std::option::Option::Some(Message_oneof_value::hanging_up(v))
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_hanging_up(&mut self) -> &mut HangingUp {
+        if let ::std::option::Option::Some(Message_oneof_value::hanging_up(_)) = self.value {
+        } else {
+            self.value = ::std::option::Option::Some(Message_oneof_value::hanging_up(HangingUp::new()));
+        }
+        match self.value {
+            ::std::option::Option::Some(Message_oneof_value::hanging_up(ref mut v)) => v,
+            _ => panic!(),
+        }
+    }
+
+    // Take field
+    pub fn take_hanging_up(&mut self) -> HangingUp {
+        if self.has_hanging_up() {
+            match self.value.take() {
+                ::std::option::Option::Some(Message_oneof_value::hanging_up(v)) => v,
+                _ => panic!(),
+            }
+        } else {
+            HangingUp::new()
+        }
+    }
+
+    pub fn get_hanging_up(&self) -> &HangingUp {
+        match self.value {
+            ::std::option::Option::Some(Message_oneof_value::hanging_up(ref v)) => v,
+            _ => HangingUp::default_instance(),
+        }
+    }
 }
 
 impl ::protobuf::Message for Message {
@@ -516,6 +566,11 @@ impl ::protobuf::Message for Message {
             }
         }
         if let Some(Message_oneof_value::pong(ref v)) = self.value {
+            if !v.is_initialized() {
+                return false;
+            }
+        }
+        if let Some(Message_oneof_value::hanging_up(ref v)) = self.value {
             if !v.is_initialized() {
                 return false;
             }
@@ -582,6 +637,12 @@ impl ::protobuf::Message for Message {
                     }
                     self.value = ::std::option::Option::Some(Message_oneof_value::pong(is.read_message()?));
                 },
+                10 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    self.value = ::std::option::Option::Some(Message_oneof_value::hanging_up(is.read_message()?));
+                },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
                 },
@@ -628,6 +689,10 @@ impl ::protobuf::Message for Message {
                     my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
                 },
                 &Message_oneof_value::pong(ref v) => {
+                    let len = v.compute_size();
+                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+                },
+                &Message_oneof_value::hanging_up(ref v) => {
                     let len = v.compute_size();
                     my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
                 },
@@ -681,6 +746,11 @@ impl ::protobuf::Message for Message {
                 },
                 &Message_oneof_value::pong(ref v) => {
                     os.write_tag(9, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+                    os.write_raw_varint32(v.get_cached_size())?;
+                    v.write_to_with_cached_sizes(os)?;
+                },
+                &Message_oneof_value::hanging_up(ref v) => {
+                    os.write_tag(10, ::protobuf::wire_format::WireTypeLengthDelimited)?;
                     os.write_raw_varint32(v.get_cached_size())?;
                     v.write_to_with_cached_sizes(os)?;
                 },
@@ -775,6 +845,11 @@ impl ::protobuf::MessageStatic for Message {
                     Message::has_pong,
                     Message::get_pong,
                 ));
+                fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, HangingUp>(
+                    "hanging_up",
+                    Message::has_hanging_up,
+                    Message::get_hanging_up,
+                ));
                 ::protobuf::reflect::MessageDescriptor::new::<Message>(
                     "Message",
                     fields,
@@ -796,6 +871,7 @@ impl ::protobuf::Clear for Message {
         self.clear_clipboard_update();
         self.clear_ping();
         self.clear_pong();
+        self.clear_hanging_up();
         self.unknown_fields.clear();
     }
 }
@@ -822,6 +898,7 @@ pub enum Message_MessageType {
     CLIPBOARD_UPDATE = 5,
     PING = 6,
     PONG = 7,
+    HANGING_UP = 8,
 }
 
 impl ::protobuf::ProtobufEnum for Message_MessageType {
@@ -839,6 +916,7 @@ impl ::protobuf::ProtobufEnum for Message_MessageType {
             5 => ::std::option::Option::Some(Message_MessageType::CLIPBOARD_UPDATE),
             6 => ::std::option::Option::Some(Message_MessageType::PING),
             7 => ::std::option::Option::Some(Message_MessageType::PONG),
+            8 => ::std::option::Option::Some(Message_MessageType::HANGING_UP),
             _ => ::std::option::Option::None
         }
     }
@@ -853,6 +931,7 @@ impl ::protobuf::ProtobufEnum for Message_MessageType {
             Message_MessageType::CLIPBOARD_UPDATE,
             Message_MessageType::PING,
             Message_MessageType::PONG,
+            Message_MessageType::HANGING_UP,
         ];
         values
     }
@@ -1456,6 +1535,7 @@ pub struct Registered {
     pub num_nodes: u32,
     pub tree: ::protobuf::SingularPtrField<NodeTree>,
     pub clipboard: ::std::vec::Vec<u8>,
+    pub max_message_size: u32,
     // special fields
     unknown_fields: ::protobuf::UnknownFields,
     cached_size: ::protobuf::CachedSize,
@@ -1599,6 +1679,29 @@ impl Registered {
     fn mut_clipboard_for_reflect(&mut self) -> &mut ::std::vec::Vec<u8> {
         &mut self.clipboard
     }
+
+    // uint32 max_message_size = 5;
+
+    pub fn clear_max_message_size(&mut self) {
+        self.max_message_size = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_max_message_size(&mut self, v: u32) {
+        self.max_message_size = v;
+    }
+
+    pub fn get_max_message_size(&self) -> u32 {
+        self.max_message_size
+    }
+
+    fn get_max_message_size_for_reflect(&self) -> &u32 {
+        &self.max_message_size
+    }
+
+    fn mut_max_message_size_for_reflect(&mut self) -> &mut u32 {
+        &mut self.max_message_size
+    }
 }
 
 impl ::protobuf::Message for Registered {
@@ -1635,6 +1738,13 @@ impl ::protobuf::Message for Registered {
                 4 => {
                     ::protobuf::rt::read_singular_proto3_bytes_into(wire_type, is, &mut self.clipboard)?;
                 },
+                5 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_uint32()?;
+                    self.max_message_size = tmp;
+                },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
                 },
@@ -1660,6 +1770,9 @@ impl ::protobuf::Message for Registered {
         if !self.clipboard.is_empty() {
             my_size += ::protobuf::rt::bytes_size(4, &self.clipboard);
         }
+        if self.max_message_size != 0 {
+            my_size += ::protobuf::rt::value_size(5, self.max_message_size, ::protobuf::wire_format::WireTypeVarint);
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
         my_size
@@ -1679,6 +1792,9 @@ impl ::protobuf::Message for Registered {
         }
         if !self.clipboard.is_empty() {
             os.write_bytes(4, &self.clipboard)?;
+        }
+        if self.max_message_size != 0 {
+            os.write_uint32(5, self.max_message_size)?;
         }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -1744,6 +1860,11 @@ impl ::protobuf::MessageStatic for Registered {
                     Registered::get_clipboard_for_reflect,
                     Registered::mut_clipboard_for_reflect,
                 ));
+                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint32>(
+                    "max_message_size",
+                    Registered::get_max_message_size_for_reflect,
+                    Registered::mut_max_message_size_for_reflect,
+                ));
                 ::protobuf::reflect::MessageDescriptor::new::<Registered>(
                     "Registered",
                     fields,
@@ -1760,6 +1881,7 @@ impl ::protobuf::Clear for Registered {
         self.clear_num_nodes();
         self.clear_tree();
         self.clear_clipboard();
+        self.clear_max_message_size();
         self.unknown_fields.clear();
     }
 }
@@ -2660,8 +2782,232 @@ impl ::protobuf::reflect::ProtobufValue for Rejected_RejectionReason {
     }
 }
 
+#[derive(PartialEq,Clone,Default)]
+pub struct HangingUp {
+    // message fields
+    pub reason: HangingUp_HangUpReason,
+    // special fields
+    unknown_fields: ::protobuf::UnknownFields,
+    cached_size: ::protobuf::CachedSize,
+}
+
+// see codegen.rs for the explanation why impl Sync explicitly
+unsafe impl ::std::marker::Sync for HangingUp {}
+
+impl HangingUp {
+    pub fn new() -> HangingUp {
+        ::std::default::Default::default()
+    }
+
+    pub fn default_instance() -> &'static HangingUp {
+        static mut instance: ::protobuf::lazy::Lazy<HangingUp> = ::protobuf::lazy::Lazy {
+            lock: ::protobuf::lazy::ONCE_INIT,
+            ptr: 0 as *const HangingUp,
+        };
+        unsafe {
+            instance.get(HangingUp::new)
+        }
+    }
+
+    // .HangingUp.HangUpReason reason = 1;
+
+    pub fn clear_reason(&mut self) {
+        self.reason = HangingUp_HangUpReason::MESSAGE_TOO_LARGE;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_reason(&mut self, v: HangingUp_HangUpReason) {
+        self.reason = v;
+    }
+
+    pub fn get_reason(&self) -> HangingUp_HangUpReason {
+        self.reason
+    }
+
+    fn get_reason_for_reflect(&self) -> &HangingUp_HangUpReason {
+        &self.reason
+    }
+
+    fn mut_reason_for_reflect(&mut self) -> &mut HangingUp_HangUpReason {
+        &mut self.reason
+    }
+}
+
+impl ::protobuf::Message for HangingUp {
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_enum()?;
+                    self.reason = tmp;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if self.reason != HangingUp_HangUpReason::MESSAGE_TOO_LARGE {
+            my_size += ::protobuf::rt::enum_size(1, self.reason);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream) -> ::protobuf::ProtobufResult<()> {
+        if self.reason != HangingUp_HangUpReason::MESSAGE_TOO_LARGE {
+            os.write_enum(1, self.reason.value())?;
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &::std::any::Any {
+        self as &::std::any::Any
+    }
+    fn as_any_mut(&mut self) -> &mut ::std::any::Any {
+        self as &mut ::std::any::Any
+    }
+    fn into_any(self: Box<Self>) -> ::std::boxed::Box<::std::any::Any> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        ::protobuf::MessageStatic::descriptor_static(None::<Self>)
+    }
+}
+
+impl ::protobuf::MessageStatic for HangingUp {
+    fn new() -> HangingUp {
+        HangingUp::new()
+    }
+
+    fn descriptor_static(_: ::std::option::Option<HangingUp>) -> &'static ::protobuf::reflect::MessageDescriptor {
+        static mut descriptor: ::protobuf::lazy::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::lazy::Lazy {
+            lock: ::protobuf::lazy::ONCE_INIT,
+            ptr: 0 as *const ::protobuf::reflect::MessageDescriptor,
+        };
+        unsafe {
+            descriptor.get(|| {
+                let mut fields = ::std::vec::Vec::new();
+                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeEnum<HangingUp_HangUpReason>>(
+                    "reason",
+                    HangingUp::get_reason_for_reflect,
+                    HangingUp::mut_reason_for_reflect,
+                ));
+                ::protobuf::reflect::MessageDescriptor::new::<HangingUp>(
+                    "HangingUp",
+                    fields,
+                    file_descriptor_proto()
+                )
+            })
+        }
+    }
+}
+
+impl ::protobuf::Clear for HangingUp {
+    fn clear(&mut self) {
+        self.clear_reason();
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for HangingUp {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for HangingUp {
+    fn as_ref(&self) -> ::protobuf::reflect::ProtobufValueRef {
+        ::protobuf::reflect::ProtobufValueRef::Message(self)
+    }
+}
+
+#[derive(Clone,PartialEq,Eq,Debug,Hash)]
+pub enum HangingUp_HangUpReason {
+    MESSAGE_TOO_LARGE = 0,
+    INVALID_MESSAGE = 1,
+}
+
+impl ::protobuf::ProtobufEnum for HangingUp_HangUpReason {
+    fn value(&self) -> i32 {
+        *self as i32
+    }
+
+    fn from_i32(value: i32) -> ::std::option::Option<HangingUp_HangUpReason> {
+        match value {
+            0 => ::std::option::Option::Some(HangingUp_HangUpReason::MESSAGE_TOO_LARGE),
+            1 => ::std::option::Option::Some(HangingUp_HangUpReason::INVALID_MESSAGE),
+            _ => ::std::option::Option::None
+        }
+    }
+
+    fn values() -> &'static [Self] {
+        static values: &'static [HangingUp_HangUpReason] = &[
+            HangingUp_HangUpReason::MESSAGE_TOO_LARGE,
+            HangingUp_HangUpReason::INVALID_MESSAGE,
+        ];
+        values
+    }
+
+    fn enum_descriptor_static(_: ::std::option::Option<HangingUp_HangUpReason>) -> &'static ::protobuf::reflect::EnumDescriptor {
+        static mut descriptor: ::protobuf::lazy::Lazy<::protobuf::reflect::EnumDescriptor> = ::protobuf::lazy::Lazy {
+            lock: ::protobuf::lazy::ONCE_INIT,
+            ptr: 0 as *const ::protobuf::reflect::EnumDescriptor,
+        };
+        unsafe {
+            descriptor.get(|| {
+                ::protobuf::reflect::EnumDescriptor::new("HangingUp_HangUpReason", file_descriptor_proto())
+            })
+        }
+    }
+}
+
+impl ::std::marker::Copy for HangingUp_HangUpReason {
+}
+
+impl ::std::default::Default for HangingUp_HangUpReason {
+    fn default() -> Self {
+        HangingUp_HangUpReason::MESSAGE_TOO_LARGE
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for HangingUp_HangUpReason {
+    fn as_ref(&self) -> ::protobuf::reflect::ProtobufValueRef {
+        ::protobuf::reflect::ProtobufValueRef::Enum(self.descriptor())
+    }
+}
+
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\rpackets.proto\"\x8a\x04\n\x07Message\x12(\n\x04type\x18\x01\x20\x01(\
+    \n\rpackets.proto\"\xc7\x04\n\x07Message\x12(\n\x04type\x18\x01\x20\x01(\
     \x0e2\x14.Message.MessageTypeR\x04type\x12\x1e\n\x05hello\x18\x02\x20\
     \x01(\x0b2\x06.HelloH\0R\x05hello\x12-\n\nregistered\x18\x03\x20\x01(\
     \x0b2\x0b.RegisteredH\0R\nregistered\x12'\n\x08rejected\x18\x04\x20\x01(\
@@ -2670,29 +3016,34 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x0b.NodeUpdateH\0R\nnodeUpdate\x12=\n\x10clipboard_update\x18\x07\x20\
     \x01(\x0b2\x10.ClipboardUpdateH\0R\x0fclipboardUpdate\x12\x1b\n\x04ping\
     \x18\x08\x20\x01(\x0b2\x05.PingH\0R\x04ping\x12\x1b\n\x04pong\x18\t\x20\
-    \x01(\x0b2\x05.PongH\0R\x04pong\"\x80\x01\n\x0bMessageType\x12\t\n\x05HE\
-    LLO\x10\0\x12\x0e\n\nREGISTERED\x10\x01\x12\x0c\n\x08REJECTED\x10\x02\
-    \x12\r\n\tNODE_TREE\x10\x03\x12\x0f\n\x0bNODE_UPDATE\x10\x04\x12\x14\n\
-    \x10CLIPBOARD_UPDATE\x10\x05\x12\x08\n\x04PING\x10\x06\x12\x08\n\x04PONG\
-    \x10\x07B\x07\n\x05value\"-\n\x0fClipboardUpdate\x12\x1a\n\x08contents\
-    \x18\x01\x20\x01(\x0cR\x08contents\"5\n\x05Hello\x12\x18\n\x07version\
-    \x18\x01\x20\x01(\rR\x07version\x12\x12\n\x04name\x18\x02\x20\x01(\tR\
-    \x04name\"\x18\n\x04Ping\x12\x10\n\x03seq\x18\x01\x20\x01(\rR\x03seq\"\
-    \x7f\n\nRegistered\x12\x17\n\x07node_id\x18\x01\x20\x01(\rR\x06nodeId\
-    \x12\x1b\n\tnum_nodes\x18\x02\x20\x01(\rR\x08numNodes\x12\x1d\n\x04tree\
-    \x18\x03\x20\x01(\x0b2\t.NodeTreeR\x04tree\x12\x1c\n\tclipboard\x18\x04\
-    \x20\x01(\x0cR\tclipboard\"\x18\n\x04Pong\x12\x10\n\x03seq\x18\x01\x20\
-    \x01(\rR\x03seq\"p\n\x08NodeTree\x12*\n\x05nodes\x18\x01\x20\x03(\x0b2\
-    \x14.NodeTree.NodesEntryR\x05nodes\x1a8\n\nNodesEntry\x12\x10\n\x03key\
-    \x18\x01\x20\x01(\rR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05va\
-    lue:\x028\x01\"\x94\x01\n\nNodeUpdate\x12*\n\x04type\x18\x01\x20\x01(\
-    \x0e2\x16.NodeUpdate.UpdateTypeR\x04type\x12\x17\n\x07node_id\x18\x02\
-    \x20\x01(\rR\x06nodeId\x12\x1b\n\tnode_name\x18\x03\x20\x01(\tR\x08nodeN\
-    ame\"$\n\nUpdateType\x12\t\n\x05ADDED\x10\0\x12\x0b\n\x07REMOVED\x10\x01\
-    \"\x80\x01\n\x08Rejected\x121\n\x06reason\x18\x01\x20\x01(\x0e2\x19.Reje\
-    cted.RejectionReasonR\x06reason\"A\n\x0fRejectionReason\x12\x0f\n\x0bBAD\
-    _VERSION\x10\0\x12\x0c\n\x08BAD_NAME\x10\x01\x12\x0f\n\x0bBAD_MESSAGE\
-    \x10\x02b\x06proto3\
+    \x01(\x0b2\x05.PongH\0R\x04pong\x12+\n\nhanging_up\x18\n\x20\x01(\x0b2\n\
+    .HangingUpH\0R\thangingUp\"\x90\x01\n\x0bMessageType\x12\t\n\x05HELLO\
+    \x10\0\x12\x0e\n\nREGISTERED\x10\x01\x12\x0c\n\x08REJECTED\x10\x02\x12\r\
+    \n\tNODE_TREE\x10\x03\x12\x0f\n\x0bNODE_UPDATE\x10\x04\x12\x14\n\x10CLIP\
+    BOARD_UPDATE\x10\x05\x12\x08\n\x04PING\x10\x06\x12\x08\n\x04PONG\x10\x07\
+    \x12\x0e\n\nHANGING_UP\x10\x08B\x07\n\x05value\"-\n\x0fClipboardUpdate\
+    \x12\x1a\n\x08contents\x18\x01\x20\x01(\x0cR\x08contents\"5\n\x05Hello\
+    \x12\x18\n\x07version\x18\x01\x20\x01(\rR\x07version\x12\x12\n\x04name\
+    \x18\x02\x20\x01(\tR\x04name\"\x18\n\x04Ping\x12\x10\n\x03seq\x18\x01\
+    \x20\x01(\rR\x03seq\"\xa9\x01\n\nRegistered\x12\x17\n\x07node_id\x18\x01\
+    \x20\x01(\rR\x06nodeId\x12\x1b\n\tnum_nodes\x18\x02\x20\x01(\rR\x08numNo\
+    des\x12\x1d\n\x04tree\x18\x03\x20\x01(\x0b2\t.NodeTreeR\x04tree\x12\x1c\
+    \n\tclipboard\x18\x04\x20\x01(\x0cR\tclipboard\x12(\n\x10max_message_siz\
+    e\x18\x05\x20\x01(\rR\x0emaxMessageSize\"\x18\n\x04Pong\x12\x10\n\x03seq\
+    \x18\x01\x20\x01(\rR\x03seq\"p\n\x08NodeTree\x12*\n\x05nodes\x18\x01\x20\
+    \x03(\x0b2\x14.NodeTree.NodesEntryR\x05nodes\x1a8\n\nNodesEntry\x12\x10\
+    \n\x03key\x18\x01\x20\x01(\rR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\
+    \tR\x05value:\x028\x01\"\x94\x01\n\nNodeUpdate\x12*\n\x04type\x18\x01\
+    \x20\x01(\x0e2\x16.NodeUpdate.UpdateTypeR\x04type\x12\x17\n\x07node_id\
+    \x18\x02\x20\x01(\rR\x06nodeId\x12\x1b\n\tnode_name\x18\x03\x20\x01(\tR\
+    \x08nodeName\"$\n\nUpdateType\x12\t\n\x05ADDED\x10\0\x12\x0b\n\x07REMOVE\
+    D\x10\x01\"\x80\x01\n\x08Rejected\x121\n\x06reason\x18\x01\x20\x01(\x0e2\
+    \x19.Rejected.RejectionReasonR\x06reason\"A\n\x0fRejectionReason\x12\x0f\
+    \n\x0bBAD_VERSION\x10\0\x12\x0c\n\x08BAD_NAME\x10\x01\x12\x0f\n\x0bBAD_M\
+    ESSAGE\x10\x02\"x\n\tHangingUp\x12/\n\x06reason\x18\x01\x20\x01(\x0e2\
+    \x17.HangingUp.HangUpReasonR\x06reason\":\n\x0cHangUpReason\x12\x15\n\
+    \x11MESSAGE_TOO_LARGE\x10\0\x12\x13\n\x0fINVALID_MESSAGE\x10\x01b\x06pro\
+    to3\
 ";
 
 static mut file_descriptor_proto_lazy: ::protobuf::lazy::Lazy<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::lazy::Lazy {
