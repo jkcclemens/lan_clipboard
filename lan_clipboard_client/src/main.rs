@@ -15,6 +15,7 @@ extern crate toml;
 extern crate clap;
 #[cfg(not(windows))]
 extern crate daemonize;
+extern crate snap;
 
 #[cfg(not(windows))]
 use daemonize::Daemonize;
@@ -22,6 +23,7 @@ use daemonize::Daemonize;
 use lan_clipboard::*;
 use clipboard::{ClipboardContext, ClipboardProvider};
 use rustls::{ClientConfig, ClientSession, Session};
+use snap::{Reader as SnappyReader, Writer as SnappyWriter};
 use chrono::{Utc, DateTime};
 use parking_lot::Mutex;
 use crypto::sha3::Sha3;
@@ -143,8 +145,8 @@ fn main() {
           break 'outer;
         }
         let (res, pos) = {
-          let mut cursor = std::io::Cursor::new(&mut client.buf);
-          (cursor.read_message(), cursor.position())
+          let mut cursor = std::io::Cursor::new(&client.buf);
+          (SnappyReader::new(cursor.by_ref()).read_message(), cursor.position())
         };
         if res.is_ok() {
           client.buf = client.buf.split_off(pos as usize);
@@ -163,8 +165,9 @@ fn main() {
         if !client.tx.is_empty() {
           let mut tx = Vec::new();
           std::mem::swap(&mut client.tx, &mut tx);
+          let mut writer = SnappyWriter::new(client.session.by_ref());
           for t in tx {
-            let _ = client.session.write_message(&t); // FIXME: don't ignore errors
+            let _ = writer.write_message(&t); // FIXME: don't ignore errors
           }
         }
         client.reregister(&mut poll.lock());

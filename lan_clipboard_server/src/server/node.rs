@@ -1,5 +1,6 @@
 use lan_clipboard::*;
 use rustls::{ServerSession, Session};
+use snap::Writer as SnappyWriter;
 use mio::*;
 use mio::net::TcpStream;
 use std::io::{self, Read};
@@ -93,8 +94,9 @@ impl Node {
       return Ok(());
     }
     {
+      let mut writer = SnappyWriter::new(self.session.by_ref());
       for t in self.tx.drain(..) {
-        self.session.write_message(&t)
+        writer.write_message(&t)
           .map_err(|e| match e {
             MessageError::Io(e) => e,
             MessageError::Protobuf(e) => io::Error::new(io::ErrorKind::Other, e)

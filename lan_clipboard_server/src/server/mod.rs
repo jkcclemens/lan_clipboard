@@ -1,9 +1,10 @@
 use lan_clipboard::*;
 use rustls::{ServerConfig, ServerSession, Session};
+use snap::Reader as SnappyReader;
 use mio::*;
 use mio::net::TcpListener;
 use slab::{Slab, VacantEntry};
-use std::io::{self, Cursor};
+use std::io::{self, Read, Cursor};
 use std::net::Shutdown;
 use std::sync::Arc;
 
@@ -82,7 +83,7 @@ impl Server {
       node.read_to_buf()?;
       let (res, pos) = {
         let mut cursor = Cursor::new(&node.buf);
-        (cursor.read_message(), cursor.position())
+        (SnappyReader::new(cursor.by_ref()).read_message(), cursor.position())
       };
       if res.is_ok() {
         node.buf = node.buf.split_off(pos as usize);

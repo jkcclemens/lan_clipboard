@@ -15,6 +15,7 @@ extern crate toml;
 extern crate clap;
 #[cfg(not(windows))]
 extern crate daemonize;
+extern crate snap;
 
 use rustls::ServerConfig;
 use mio::*;
