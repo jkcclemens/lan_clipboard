@@ -15,8 +15,6 @@ extern crate toml;
 extern crate clap;
 #[cfg(not(windows))]
 extern crate daemonize;
-#[macro_use]
-extern crate matches;
 extern crate snap;
 
 use rustls::ServerConfig;

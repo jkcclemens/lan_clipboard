@@ -112,7 +112,7 @@ impl Server {
         node.queue_message(hup.into(), poll)?;
         return Ok(());
       }
-      if res.is_ok() || matches!(res, Err(MessageError::Protobuf(_))) {
+      if res.is_ok() {
         node.buf = node.buf.split_off(pos as usize);
       }
       res
