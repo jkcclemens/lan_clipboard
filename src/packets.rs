@@ -968,6 +968,7 @@ impl ::protobuf::reflect::ProtobufValue for Message_MessageType {
 pub struct ClipboardUpdate {
     // message fields
     pub contents: ::std::vec::Vec<u8>,
+    pub compressed: bool,
     // special fields
     unknown_fields: ::protobuf::UnknownFields,
     cached_size: ::protobuf::CachedSize,
@@ -1024,6 +1025,29 @@ impl ClipboardUpdate {
     fn mut_contents_for_reflect(&mut self) -> &mut ::std::vec::Vec<u8> {
         &mut self.contents
     }
+
+    // bool compressed = 2;
+
+    pub fn clear_compressed(&mut self) {
+        self.compressed = false;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_compressed(&mut self, v: bool) {
+        self.compressed = v;
+    }
+
+    pub fn get_compressed(&self) -> bool {
+        self.compressed
+    }
+
+    fn get_compressed_for_reflect(&self) -> &bool {
+        &self.compressed
+    }
+
+    fn mut_compressed_for_reflect(&mut self) -> &mut bool {
+        &mut self.compressed
+    }
 }
 
 impl ::protobuf::Message for ClipboardUpdate {
@@ -1037,6 +1061,13 @@ impl ::protobuf::Message for ClipboardUpdate {
             match field_number {
                 1 => {
                     ::protobuf::rt::read_singular_proto3_bytes_into(wire_type, is, &mut self.contents)?;
+                },
+                2 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_bool()?;
+                    self.compressed = tmp;
                 },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
@@ -1053,6 +1084,9 @@ impl ::protobuf::Message for ClipboardUpdate {
         if !self.contents.is_empty() {
             my_size += ::protobuf::rt::bytes_size(1, &self.contents);
         }
+        if self.compressed != false {
+            my_size += 2;
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
         my_size
@@ -1061,6 +1095,9 @@ impl ::protobuf::Message for ClipboardUpdate {
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream) -> ::protobuf::ProtobufResult<()> {
         if !self.contents.is_empty() {
             os.write_bytes(1, &self.contents)?;
+        }
+        if self.compressed != false {
+            os.write_bool(2, self.compressed)?;
         }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -1111,6 +1148,11 @@ impl ::protobuf::MessageStatic for ClipboardUpdate {
                     ClipboardUpdate::get_contents_for_reflect,
                     ClipboardUpdate::mut_contents_for_reflect,
                 ));
+                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeBool>(
+                    "compressed",
+                    ClipboardUpdate::get_compressed_for_reflect,
+                    ClipboardUpdate::mut_compressed_for_reflect,
+                ));
                 ::protobuf::reflect::MessageDescriptor::new::<ClipboardUpdate>(
                     "ClipboardUpdate",
                     fields,
@@ -1124,6 +1166,7 @@ impl ::protobuf::MessageStatic for ClipboardUpdate {
 impl ::protobuf::Clear for ClipboardUpdate {
     fn clear(&mut self) {
         self.clear_contents();
+        self.clear_compressed();
         self.unknown_fields.clear();
     }
 }
@@ -3024,29 +3067,30 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x10\0\x12\x0e\n\nREGISTERED\x10\x01\x12\x0c\n\x08REJECTED\x10\x02\x12\r\
     \n\tNODE_TREE\x10\x03\x12\x0f\n\x0bNODE_UPDATE\x10\x04\x12\x14\n\x10CLIP\
     BOARD_UPDATE\x10\x05\x12\x08\n\x04PING\x10\x06\x12\x08\n\x04PONG\x10\x07\
-    \x12\x0e\n\nHANGING_UP\x10\x08B\x07\n\x05value\"-\n\x0fClipboardUpdate\
-    \x12\x1a\n\x08contents\x18\x01\x20\x01(\x0cR\x08contents\"5\n\x05Hello\
-    \x12\x18\n\x07version\x18\x01\x20\x01(\rR\x07version\x12\x12\n\x04name\
-    \x18\x02\x20\x01(\tR\x04name\"\x18\n\x04Ping\x12\x10\n\x03seq\x18\x01\
-    \x20\x01(\rR\x03seq\"\xa9\x01\n\nRegistered\x12\x17\n\x07node_id\x18\x01\
-    \x20\x01(\rR\x06nodeId\x12\x1b\n\tnum_nodes\x18\x02\x20\x01(\rR\x08numNo\
-    des\x12\x1d\n\x04tree\x18\x03\x20\x01(\x0b2\t.NodeTreeR\x04tree\x12\x1c\
-    \n\tclipboard\x18\x04\x20\x01(\x0cR\tclipboard\x12(\n\x10max_message_siz\
-    e\x18\x05\x20\x01(\rR\x0emaxMessageSize\"\x18\n\x04Pong\x12\x10\n\x03seq\
-    \x18\x01\x20\x01(\rR\x03seq\"p\n\x08NodeTree\x12*\n\x05nodes\x18\x01\x20\
-    \x03(\x0b2\x14.NodeTree.NodesEntryR\x05nodes\x1a8\n\nNodesEntry\x12\x10\
-    \n\x03key\x18\x01\x20\x01(\rR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\
-    \tR\x05value:\x028\x01\"\x94\x01\n\nNodeUpdate\x12*\n\x04type\x18\x01\
-    \x20\x01(\x0e2\x16.NodeUpdate.UpdateTypeR\x04type\x12\x17\n\x07node_id\
-    \x18\x02\x20\x01(\rR\x06nodeId\x12\x1b\n\tnode_name\x18\x03\x20\x01(\tR\
-    \x08nodeName\"$\n\nUpdateType\x12\t\n\x05ADDED\x10\0\x12\x0b\n\x07REMOVE\
-    D\x10\x01\"\x80\x01\n\x08Rejected\x121\n\x06reason\x18\x01\x20\x01(\x0e2\
-    \x19.Rejected.RejectionReasonR\x06reason\"A\n\x0fRejectionReason\x12\x0f\
-    \n\x0bBAD_VERSION\x10\0\x12\x0c\n\x08BAD_NAME\x10\x01\x12\x0f\n\x0bBAD_M\
-    ESSAGE\x10\x02\"\x8a\x01\n\tHangingUp\x12/\n\x06reason\x18\x01\x20\x01(\
-    \x0e2\x17.HangingUp.HangUpReasonR\x06reason\"L\n\x0cHangUpReason\x12\x15\
-    \n\x11MESSAGE_TOO_LARGE\x10\0\x12\x13\n\x0fINVALID_MESSAGE\x10\x01\x12\
-    \x10\n\x0cPING_TIMEOUT\x10\x02b\x06proto3\
+    \x12\x0e\n\nHANGING_UP\x10\x08B\x07\n\x05value\"M\n\x0fClipboardUpdate\
+    \x12\x1a\n\x08contents\x18\x01\x20\x01(\x0cR\x08contents\x12\x1e\n\ncomp\
+    ressed\x18\x02\x20\x01(\x08R\ncompressed\"5\n\x05Hello\x12\x18\n\x07vers\
+    ion\x18\x01\x20\x01(\rR\x07version\x12\x12\n\x04name\x18\x02\x20\x01(\tR\
+    \x04name\"\x18\n\x04Ping\x12\x10\n\x03seq\x18\x01\x20\x01(\rR\x03seq\"\
+    \xa9\x01\n\nRegistered\x12\x17\n\x07node_id\x18\x01\x20\x01(\rR\x06nodeI\
+    d\x12\x1b\n\tnum_nodes\x18\x02\x20\x01(\rR\x08numNodes\x12\x1d\n\x04tree\
+    \x18\x03\x20\x01(\x0b2\t.NodeTreeR\x04tree\x12\x1c\n\tclipboard\x18\x04\
+    \x20\x01(\x0cR\tclipboard\x12(\n\x10max_message_size\x18\x05\x20\x01(\rR\
+    \x0emaxMessageSize\"\x18\n\x04Pong\x12\x10\n\x03seq\x18\x01\x20\x01(\rR\
+    \x03seq\"p\n\x08NodeTree\x12*\n\x05nodes\x18\x01\x20\x03(\x0b2\x14.NodeT\
+    ree.NodesEntryR\x05nodes\x1a8\n\nNodesEntry\x12\x10\n\x03key\x18\x01\x20\
+    \x01(\rR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05value:\x028\
+    \x01\"\x94\x01\n\nNodeUpdate\x12*\n\x04type\x18\x01\x20\x01(\x0e2\x16.No\
+    deUpdate.UpdateTypeR\x04type\x12\x17\n\x07node_id\x18\x02\x20\x01(\rR\
+    \x06nodeId\x12\x1b\n\tnode_name\x18\x03\x20\x01(\tR\x08nodeName\"$\n\nUp\
+    dateType\x12\t\n\x05ADDED\x10\0\x12\x0b\n\x07REMOVED\x10\x01\"\x80\x01\n\
+    \x08Rejected\x121\n\x06reason\x18\x01\x20\x01(\x0e2\x19.Rejected.Rejecti\
+    onReasonR\x06reason\"A\n\x0fRejectionReason\x12\x0f\n\x0bBAD_VERSION\x10\
+    \0\x12\x0c\n\x08BAD_NAME\x10\x01\x12\x0f\n\x0bBAD_MESSAGE\x10\x02\"\x8a\
+    \x01\n\tHangingUp\x12/\n\x06reason\x18\x01\x20\x01(\x0e2\x17.HangingUp.H\
+    angUpReasonR\x06reason\"L\n\x0cHangUpReason\x12\x15\n\x11MESSAGE_TOO_LAR\
+    GE\x10\0\x12\x13\n\x0fINVALID_MESSAGE\x10\x01\x12\x10\n\x0cPING_TIMEOUT\
+    \x10\x02b\x06proto3\
 ";
 
 static mut file_descriptor_proto_lazy: ::protobuf::lazy::Lazy<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::lazy::Lazy {
