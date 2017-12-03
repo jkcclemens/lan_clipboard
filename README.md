@@ -32,15 +32,19 @@ To successfully compile, you need a few dependencies!
 
 ## Usage
 
+The client and server have usage instructions if you run them and specify the `-h` or `--help` flag.
+While not necessary, specifying a configuration file will make it easiest to start them. Most
+options can be specified on the command-line, but not all.
+
 ### Server
 
 You need one of these!
 
-The server has usage instructions if you run it without parameters, but I'll list them here, too.
+An example configuration file is located
+[here](https://github.com/jkcclemens/lan_clipboard/blob/master/configs/server.toml).
 
-```
-usage: lan_clipboard_server [hostname:port] [certificate pem] [key pem]
-```
+Start the server, then connect clients. When clients change their clipboard, the server will tell
+the other clients to update automatically.
 
 The server uses TLS to secure transmission of your data. You will need to provide a x509 v3
 certificate chain and its private key, both in PEM format, to the server.
@@ -50,11 +54,11 @@ certificate chain and its private key, both in PEM format, to the server.
 
 You don't necessarily need any of these, but you need two to get any use out of this program!
 
-The client has usage instructions if you run it without parameters, but I'll list them here, too.
+An example configuration file is located
+[here](https://github.com/jkcclemens/lan_clipboard/blob/master/configs/client.toml).
 
-```
-usage: lan_clipboard_client [hostname] [port] [cert file] [client name]
-```
+Start the client and connect it to a server. It is recommended to daemonize the client if possible.
+Any time your clipboard changes, the client will automatically tell the server.
 
 The client will connect using TLS to the server, so you'll need to provide the x509 v3 certificate
 chain that the server is using in order to communicate.
@@ -96,3 +100,18 @@ a tube some guy on the internet said was "probably safe, maybe."
 
 lan_clipboard uses [rustls](https://github.com/ctz/rustls) for TLS funsies, not OpenSSL. Just so you
 know.
+
+### Bandwidth
+
+The client sends pings to the server every 15 seconds, and the server will respond to each ping.
+
+The client will send the contents of the clipboard to the server whenever it detects a change,
+optionally compressing it. In this implementation of the client, clipboards less than 17 bytes are
+not compressed.
+
+The server will send every client (including the updating client) the new clipboard, optionally
+compressing it. In this implementation of the server, clipboards less than 17 bytes are not
+compressed.
+
+The stream of packets between server and client are not compressed in either direction. Most packets
+are actually too small to be compressed, and compression increases their size.
