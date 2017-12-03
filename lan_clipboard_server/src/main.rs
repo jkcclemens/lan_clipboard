@@ -18,6 +18,7 @@ extern crate daemonize;
 extern crate snap;
 extern crate chrono;
 
+use lan_clipboard::{HangingUp, HangingUp_HangUpReason};
 use rustls::ServerConfig;
 use chrono::{Utc, Duration};
 use mio::*;
@@ -104,7 +105,6 @@ fn inner() -> Result<(), String> {
       if !node.shutting_down && node.last_ping.unwrap_or(node.connected_at) + Duration::seconds(30) < Utc::now() {
         println!("ping timeout, hanging up on node {}", node.id);
         node.shutting_down = true;
-        use lan_clipboard::{HangingUp, HangingUp_HangUpReason};
         let mut hup: HangingUp = HangingUp::new();
         hup.set_reason(HangingUp_HangUpReason::PING_TIMEOUT);
         node.queue_message(hup.into(), &mut conn_poll).ok();
