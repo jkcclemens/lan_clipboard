@@ -140,6 +140,7 @@ message HangingUp {
   enum HangUpReason {
     MESSAGE_TOO_LARGE = 0;
     INVALID_MESSAGE = 1;
+    PING_TIMEOUT = 2;
   }
 
   HangUpReason reason = 1; // the reason for the hang-up

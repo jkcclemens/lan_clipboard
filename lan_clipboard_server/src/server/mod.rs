@@ -1,6 +1,6 @@
 use lan_clipboard::*;
 use rustls::{ServerConfig, ServerSession, Session};
-use snap::Reader as SnappyReader;
+use chrono::Utc;
 use mio::*;
 use mio::net::TcpListener;
 use slab::{Slab, VacantEntry};
@@ -213,6 +213,7 @@ impl Server {
     let mut pong = Pong::new();
     pong.set_seq(seq);
 
+    self.nodes[token.0].last_ping = Some(Utc::now());
     self.nodes[token.0].queue_message(pong.into(), poll)
   }
 

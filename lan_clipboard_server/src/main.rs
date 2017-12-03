@@ -16,8 +16,10 @@ extern crate clap;
 #[cfg(not(windows))]
 extern crate daemonize;
 extern crate snap;
+extern crate chrono;
 
 use rustls::ServerConfig;
+use chrono::{Utc, Duration};
 use mio::*;
 use mio::net::TcpListener;
 use slab::Slab;
@@ -98,6 +100,16 @@ fn inner() -> Result<(), String> {
   let mut conn_events = Events::with_capacity(128);
 
   loop {
+    for (_, node) in server.nodes.iter_mut() {
+      if !node.shutting_down && node.last_ping.unwrap_or(node.connected_at) + Duration::seconds(30) < Utc::now() {
+        println!("ping timeout, hanging up on node {}", node.id);
+        node.shutting_down = true;
+        use lan_clipboard::{HangingUp, HangingUp_HangUpReason};
+        let mut hup: HangingUp = HangingUp::new();
+        hup.set_reason(HangingUp_HangUpReason::PING_TIMEOUT);
+        node.queue_message(hup.into(), &mut conn_poll).ok();
+      }
+    }
     conn_poll.poll(&mut conn_events, Some(std::time::Duration::from_millis(100)))
       .map_err(|e| format!("could not poll: {}", e))?;
     for event in conn_events.iter() {

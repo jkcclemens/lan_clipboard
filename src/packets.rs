@@ -2955,6 +2955,7 @@ impl ::protobuf::reflect::ProtobufValue for HangingUp {
 pub enum HangingUp_HangUpReason {
     MESSAGE_TOO_LARGE = 0,
     INVALID_MESSAGE = 1,
+    PING_TIMEOUT = 2,
 }
 
 impl ::protobuf::ProtobufEnum for HangingUp_HangUpReason {
@@ -2966,6 +2967,7 @@ impl ::protobuf::ProtobufEnum for HangingUp_HangUpReason {
         match value {
             0 => ::std::option::Option::Some(HangingUp_HangUpReason::MESSAGE_TOO_LARGE),
             1 => ::std::option::Option::Some(HangingUp_HangUpReason::INVALID_MESSAGE),
+            2 => ::std::option::Option::Some(HangingUp_HangUpReason::PING_TIMEOUT),
             _ => ::std::option::Option::None
         }
     }
@@ -2974,6 +2976,7 @@ impl ::protobuf::ProtobufEnum for HangingUp_HangUpReason {
         static values: &'static [HangingUp_HangUpReason] = &[
             HangingUp_HangUpReason::MESSAGE_TOO_LARGE,
             HangingUp_HangUpReason::INVALID_MESSAGE,
+            HangingUp_HangUpReason::PING_TIMEOUT,
         ];
         values
     }
@@ -3040,10 +3043,10 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     D\x10\x01\"\x80\x01\n\x08Rejected\x121\n\x06reason\x18\x01\x20\x01(\x0e2\
     \x19.Rejected.RejectionReasonR\x06reason\"A\n\x0fRejectionReason\x12\x0f\
     \n\x0bBAD_VERSION\x10\0\x12\x0c\n\x08BAD_NAME\x10\x01\x12\x0f\n\x0bBAD_M\
-    ESSAGE\x10\x02\"x\n\tHangingUp\x12/\n\x06reason\x18\x01\x20\x01(\x0e2\
-    \x17.HangingUp.HangUpReasonR\x06reason\":\n\x0cHangUpReason\x12\x15\n\
-    \x11MESSAGE_TOO_LARGE\x10\0\x12\x13\n\x0fINVALID_MESSAGE\x10\x01b\x06pro\
-    to3\
+    ESSAGE\x10\x02\"\x8a\x01\n\tHangingUp\x12/\n\x06reason\x18\x01\x20\x01(\
+    \x0e2\x17.HangingUp.HangUpReasonR\x06reason\"L\n\x0cHangUpReason\x12\x15\
+    \n\x11MESSAGE_TOO_LARGE\x10\0\x12\x13\n\x0fINVALID_MESSAGE\x10\x01\x12\
+    \x10\n\x0cPING_TIMEOUT\x10\x02b\x06proto3\
 ";
 
 static mut file_descriptor_proto_lazy: ::protobuf::lazy::Lazy<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::lazy::Lazy {

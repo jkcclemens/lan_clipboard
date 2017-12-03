@@ -1,6 +1,6 @@
 use lan_clipboard::*;
 use rustls::{ServerSession, Session};
-use snap::Writer as SnappyWriter;
+use chrono::{DateTime, Utc};
 use mio::*;
 use mio::net::TcpStream;
 use std::io::{self, Read};
@@ -17,7 +17,9 @@ pub struct Node {
   pub tx: Vec<Message>,
   pub buf: Vec<u8>,
   pub registered: bool,
-  pub shutting_down: bool
+  pub shutting_down: bool,
+  pub connected_at: DateTime<Utc>,
+  pub last_ping: Option<DateTime<Utc>>
 }
 
 impl Node {
@@ -32,7 +34,9 @@ impl Node {
       tx: Vec::new(),
       buf: Vec::new(),
       registered: false,
-      shutting_down: false
+      shutting_down: false,
+      connected_at: Utc::now(),
+      last_ping: None
     }
   }
 
