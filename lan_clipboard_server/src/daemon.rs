@@ -56,7 +56,7 @@ impl Daemon {
     Err("daemonization is not supported on Windows".into())
   }
 
-  pub fn new(_: &Config) -> Result<Daemon, String> {
+  pub fn new(_: &Config) -> Result<Option<Daemon>, String> {
     Daemon::err()
   }
 
