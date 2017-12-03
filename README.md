@@ -113,5 +113,5 @@ The server will send every client (including the updating client) the new clipbo
 compressing it. In this implementation of the server, clipboards less than 17 bytes are not
 compressed.
 
-The stream of packets between server and client are not compressed in either direction. Most packets
+The stream of packets between server and client is not compressed in either direction. Most packets
 are actually too small to be compressed, and compression increases their size.
