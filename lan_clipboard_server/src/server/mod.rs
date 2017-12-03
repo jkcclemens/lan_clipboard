@@ -1,10 +1,11 @@
 use lan_clipboard::*;
 use rustls::{ServerConfig, ServerSession, Session};
+use snap::{self, Reader as SnappyReader, Writer as SnappyWriter};
 use chrono::Utc;
 use mio::*;
 use mio::net::TcpListener;
 use slab::{Slab, VacantEntry};
-use std::io::{self, Read, Cursor};
+use std::io::{self, Read, Write, Cursor};
 use std::net::Shutdown;
 use std::sync::Arc;
 
@@ -103,7 +104,7 @@ impl Server {
       }
       let (res, pos) = {
         let mut cursor = Cursor::new(&node.buf);
-        (SnappyReader::new(cursor.by_ref()).read_message(), cursor.position())
+        (cursor.read_message(), cursor.position())
       };
       if let Err(MessageError::Protobuf(_)) = res {
         node.shutting_down = true;
@@ -223,12 +224,27 @@ impl Server {
     }
 
     let mut cu = message.take_clipboard_update();
-    let new = cu.take_contents();
+    let new = if cu.get_compressed() {
+      let contents = cu.take_contents();
+      let mut data: Vec<u8> = Vec::with_capacity(snap::decompress_len(&contents)?);
+      SnappyReader::new(&*contents).read_to_end(&mut data)?;
+      data
+    } else {
+      cu.take_contents()
+    };
 
     self.state.shared = new;
 
     let mut update = ClipboardUpdate::new();
-    update.set_contents(self.state.shared.clone());
+    let (compressed, data) = if self.state.shared.len() > 17 {
+      let mut data = Vec::new();
+      SnappyWriter::new(&mut data).write_all(&self.state.shared)?;
+      (true, data)
+    } else {
+      (false, self.state.shared.clone())
+    };
+    update.set_contents(data);
+    update.set_compressed(compressed);
 
     let m: Message = update.into();
 

@@ -23,7 +23,7 @@ use daemonize::Daemonize;
 use lan_clipboard::*;
 use clipboard::{ClipboardContext, ClipboardProvider};
 use rustls::{ClientConfig, ClientSession, Session};
-use snap::{Reader as SnappyReader, Writer as SnappyWriter};
+use snap::Writer as SnappyWriter;
 use chrono::{Utc, DateTime};
 use parking_lot::Mutex;
 use crypto::sha3::Sha3;
@@ -34,7 +34,7 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::fs::File;
-use std::io::{self, Read};
+use std::io::{self, Read, Write, BufWriter};
 
 mod config;
 mod cli;
@@ -146,7 +146,7 @@ fn main() {
         }
         let (res, pos) = {
           let mut cursor = std::io::Cursor::new(&client.buf);
-          (SnappyReader::new(cursor.by_ref()).read_message(), cursor.position())
+          (cursor.read_message(), cursor.position())
         };
         if res.is_ok() {
           client.buf = client.buf.split_off(pos as usize);
@@ -165,7 +165,7 @@ fn main() {
         if !client.tx.is_empty() {
           let mut tx = Vec::new();
           std::mem::swap(&mut client.tx, &mut tx);
-          let mut writer = SnappyWriter::new(client.session.by_ref());
+          let mut writer = BufWriter::new(&mut client.session);
           for t in tx {
             let _ = writer.write_message(&t); // FIXME: don't ignore errors
           }
@@ -216,7 +216,7 @@ struct Client {
   tx: Vec<Message>,
   buf: Vec<u8>,
   last_ping: (u32, DateTime<Utc>),
-  last_update: Vec<u8>,
+  last_update_hash: Vec<u8>,
   clipboard: ClipboardContext
 }
 
@@ -229,7 +229,7 @@ impl Client {
       tx: Vec::new(),
       buf: Vec::new(),
       last_ping: (0, Utc::now()),
-      last_update: Vec::new(),
+      last_update_hash: Vec::new(),
       clipboard: ClipboardContext::new().unwrap()
     }
   }
@@ -322,16 +322,28 @@ impl Client {
           Err(_) => continue
         };
         let mut local_hash = Vec::with_capacity(64);
+        unsafe { local_hash.set_len(64); }
         sha3.input(&local);
         sha3.result(&mut local_hash);
         sha3.reset();
-        if local == shared || client.last_update == local {
+        if local == shared || client.last_update_hash == local_hash {
           continue;
         }
+        let (compressed, data) = if local.len() > 17 {
+          let mut data = Vec::new();
+          if let Err(e) = SnappyWriter::new(&mut data).write_all(&local) {
+            println!("error compressing data: {}", e);
+            continue;
+          }
+          (true, data)
+        } else {
+          (false, local.clone())
+        };
         let mut cu = ClipboardUpdate::new();
-        cu.set_contents(local.clone());
+        cu.set_contents(data);
+        cu.set_compressed(compressed);
         client.queue_message(cu.into(), &mut poll.lock());
-        client.last_update = local_hash;
+        client.last_update_hash = local_hash;
       }
     });
   }

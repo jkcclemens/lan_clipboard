@@ -3,7 +3,7 @@ use rustls::{ServerSession, Session};
 use chrono::{DateTime, Utc};
 use mio::*;
 use mio::net::TcpStream;
-use std::io::{self, Read};
+use std::io::{self, Read, BufWriter};
 use std::net::SocketAddr;
 
 pub struct Node {
@@ -98,7 +98,7 @@ impl Node {
       return Ok(());
     }
     {
-      let mut writer = SnappyWriter::new(self.session.by_ref());
+      let mut writer = BufWriter::new(self.session.by_ref());
       for t in self.tx.drain(..) {
         writer.write_message(&t)
           .map_err(|e| match e {

@@ -38,9 +38,13 @@ message Message {
 *
 * When sent from a client, this message indiciates that the server should tell other clients to
 * update their clipboards to contain the contents.
+*
+* The contents may be compressed. If the compressed field is true, the contents are compressed using
+* the Snappy frame format and must be decompressed before being stored on the clipboard.
 */
 message ClipboardUpdate {
   bytes contents = 1; // the contents of the clipboard
+  bool compressed = 2; // whether the contents are compressed
 }
 
 // C -> S
