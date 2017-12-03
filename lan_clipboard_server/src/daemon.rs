@@ -60,7 +60,7 @@ impl Daemon {
     Daemon::err()
   }
 
-  pub fn start(self) -> Result<(), DaemonizeError> {
+  pub fn start(self) -> Result<(), String> {
     Daemon::err()
   }
 }
