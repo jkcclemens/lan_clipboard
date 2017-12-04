@@ -64,7 +64,7 @@ impl Server {
       return Ok(());
     }
 
-    let mut removal: NodeUpdate = NodeUpdate::new();
+    let mut removal = NodeUpdate::new();
     removal.set_field_type(NodeUpdate_UpdateType::REMOVED);
     removal.set_node_id(node.id);
     if let Some(name) = node.name {
@@ -176,7 +176,7 @@ impl Server {
     let num: Message = {
       let node = &mut self.nodes[token.0];
 
-      let mut node_update: NodeUpdate = NodeUpdate::new();
+      let mut node_update = NodeUpdate::new();
       node_update.set_field_type(NodeUpdate_UpdateType::ADDED);
       node_update.set_node_id(node.id);
       node_update.set_node_name(node.name.clone().unwrap_or_default());
