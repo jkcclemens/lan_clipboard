@@ -203,16 +203,13 @@ impl Server {
     self.nodes[token.0].queue_message(reg.into(), poll)
   }
 
-  fn ping(&mut self, token: Token, mut message: Message, poll: &mut Poll) -> io::Result<()> {
+  fn ping(&mut self, token: Token, message: Message, poll: &mut Poll) -> io::Result<()> {
     if !message.has_ping() {
       return Ok(());
     }
 
-    let ping = message.take_ping();
-    let seq = ping.get_seq();
-
     let mut pong = Pong::new();
-    pong.set_seq(seq);
+    pong.set_rand(message.get_ping().get_rand());
 
     self.nodes[token.0].last_ping = Some(Utc::now());
     self.nodes[token.0].queue_message(pong.into(), poll)

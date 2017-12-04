@@ -1405,7 +1405,7 @@ impl ::protobuf::reflect::ProtobufValue for Hello {
 #[derive(PartialEq,Clone,Default)]
 pub struct Ping {
     // message fields
-    pub seq: u32,
+    pub rand: u64,
     // special fields
     unknown_fields: ::protobuf::UnknownFields,
     cached_size: ::protobuf::CachedSize,
@@ -1429,27 +1429,27 @@ impl Ping {
         }
     }
 
-    // uint32 seq = 1;
+    // uint64 rand = 1;
 
-    pub fn clear_seq(&mut self) {
-        self.seq = 0;
+    pub fn clear_rand(&mut self) {
+        self.rand = 0;
     }
 
     // Param is passed by value, moved
-    pub fn set_seq(&mut self, v: u32) {
-        self.seq = v;
+    pub fn set_rand(&mut self, v: u64) {
+        self.rand = v;
     }
 
-    pub fn get_seq(&self) -> u32 {
-        self.seq
+    pub fn get_rand(&self) -> u64 {
+        self.rand
     }
 
-    fn get_seq_for_reflect(&self) -> &u32 {
-        &self.seq
+    fn get_rand_for_reflect(&self) -> &u64 {
+        &self.rand
     }
 
-    fn mut_seq_for_reflect(&mut self) -> &mut u32 {
-        &mut self.seq
+    fn mut_rand_for_reflect(&mut self) -> &mut u64 {
+        &mut self.rand
     }
 }
 
@@ -1466,8 +1466,8 @@ impl ::protobuf::Message for Ping {
                     if wire_type != ::protobuf::wire_format::WireTypeVarint {
                         return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
                     }
-                    let tmp = is.read_uint32()?;
-                    self.seq = tmp;
+                    let tmp = is.read_uint64()?;
+                    self.rand = tmp;
                 },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
@@ -1481,8 +1481,8 @@ impl ::protobuf::Message for Ping {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u32 {
         let mut my_size = 0;
-        if self.seq != 0 {
-            my_size += ::protobuf::rt::value_size(1, self.seq, ::protobuf::wire_format::WireTypeVarint);
+        if self.rand != 0 {
+            my_size += ::protobuf::rt::value_size(1, self.rand, ::protobuf::wire_format::WireTypeVarint);
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
@@ -1490,8 +1490,8 @@ impl ::protobuf::Message for Ping {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream) -> ::protobuf::ProtobufResult<()> {
-        if self.seq != 0 {
-            os.write_uint32(1, self.seq)?;
+        if self.rand != 0 {
+            os.write_uint64(1, self.rand)?;
         }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -1537,10 +1537,10 @@ impl ::protobuf::MessageStatic for Ping {
         unsafe {
             descriptor.get(|| {
                 let mut fields = ::std::vec::Vec::new();
-                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint32>(
-                    "seq",
-                    Ping::get_seq_for_reflect,
-                    Ping::mut_seq_for_reflect,
+                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint64>(
+                    "rand",
+                    Ping::get_rand_for_reflect,
+                    Ping::mut_rand_for_reflect,
                 ));
                 ::protobuf::reflect::MessageDescriptor::new::<Ping>(
                     "Ping",
@@ -1554,7 +1554,7 @@ impl ::protobuf::MessageStatic for Ping {
 
 impl ::protobuf::Clear for Ping {
     fn clear(&mut self) {
-        self.clear_seq();
+        self.clear_rand();
         self.unknown_fields.clear();
     }
 }
@@ -1944,7 +1944,7 @@ impl ::protobuf::reflect::ProtobufValue for Registered {
 #[derive(PartialEq,Clone,Default)]
 pub struct Pong {
     // message fields
-    pub seq: u32,
+    pub rand: u64,
     // special fields
     unknown_fields: ::protobuf::UnknownFields,
     cached_size: ::protobuf::CachedSize,
@@ -1968,27 +1968,27 @@ impl Pong {
         }
     }
 
-    // uint32 seq = 1;
+    // uint64 rand = 1;
 
-    pub fn clear_seq(&mut self) {
-        self.seq = 0;
+    pub fn clear_rand(&mut self) {
+        self.rand = 0;
     }
 
     // Param is passed by value, moved
-    pub fn set_seq(&mut self, v: u32) {
-        self.seq = v;
+    pub fn set_rand(&mut self, v: u64) {
+        self.rand = v;
     }
 
-    pub fn get_seq(&self) -> u32 {
-        self.seq
+    pub fn get_rand(&self) -> u64 {
+        self.rand
     }
 
-    fn get_seq_for_reflect(&self) -> &u32 {
-        &self.seq
+    fn get_rand_for_reflect(&self) -> &u64 {
+        &self.rand
     }
 
-    fn mut_seq_for_reflect(&mut self) -> &mut u32 {
-        &mut self.seq
+    fn mut_rand_for_reflect(&mut self) -> &mut u64 {
+        &mut self.rand
     }
 }
 
@@ -2005,8 +2005,8 @@ impl ::protobuf::Message for Pong {
                     if wire_type != ::protobuf::wire_format::WireTypeVarint {
                         return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
                     }
-                    let tmp = is.read_uint32()?;
-                    self.seq = tmp;
+                    let tmp = is.read_uint64()?;
+                    self.rand = tmp;
                 },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
@@ -2020,8 +2020,8 @@ impl ::protobuf::Message for Pong {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u32 {
         let mut my_size = 0;
-        if self.seq != 0 {
-            my_size += ::protobuf::rt::value_size(1, self.seq, ::protobuf::wire_format::WireTypeVarint);
+        if self.rand != 0 {
+            my_size += ::protobuf::rt::value_size(1, self.rand, ::protobuf::wire_format::WireTypeVarint);
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
@@ -2029,8 +2029,8 @@ impl ::protobuf::Message for Pong {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream) -> ::protobuf::ProtobufResult<()> {
-        if self.seq != 0 {
-            os.write_uint32(1, self.seq)?;
+        if self.rand != 0 {
+            os.write_uint64(1, self.rand)?;
         }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -2076,10 +2076,10 @@ impl ::protobuf::MessageStatic for Pong {
         unsafe {
             descriptor.get(|| {
                 let mut fields = ::std::vec::Vec::new();
-                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint32>(
-                    "seq",
-                    Pong::get_seq_for_reflect,
-                    Pong::mut_seq_for_reflect,
+                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint64>(
+                    "rand",
+                    Pong::get_rand_for_reflect,
+                    Pong::mut_rand_for_reflect,
                 ));
                 ::protobuf::reflect::MessageDescriptor::new::<Pong>(
                     "Pong",
@@ -2093,7 +2093,7 @@ impl ::protobuf::MessageStatic for Pong {
 
 impl ::protobuf::Clear for Pong {
     fn clear(&mut self) {
-        self.clear_seq();
+        self.clear_rand();
         self.unknown_fields.clear();
     }
 }
@@ -3071,26 +3071,26 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x12\x1a\n\x08contents\x18\x01\x20\x01(\x0cR\x08contents\x12\x1e\n\ncomp\
     ressed\x18\x02\x20\x01(\x08R\ncompressed\"5\n\x05Hello\x12\x18\n\x07vers\
     ion\x18\x01\x20\x01(\rR\x07version\x12\x12\n\x04name\x18\x02\x20\x01(\tR\
-    \x04name\"\x18\n\x04Ping\x12\x10\n\x03seq\x18\x01\x20\x01(\rR\x03seq\"\
-    \xa9\x01\n\nRegistered\x12\x17\n\x07node_id\x18\x01\x20\x01(\rR\x06nodeI\
-    d\x12\x1b\n\tnum_nodes\x18\x02\x20\x01(\rR\x08numNodes\x12\x1d\n\x04tree\
-    \x18\x03\x20\x01(\x0b2\t.NodeTreeR\x04tree\x12\x1c\n\tclipboard\x18\x04\
-    \x20\x01(\x0cR\tclipboard\x12(\n\x10max_message_size\x18\x05\x20\x01(\rR\
-    \x0emaxMessageSize\"\x18\n\x04Pong\x12\x10\n\x03seq\x18\x01\x20\x01(\rR\
-    \x03seq\"p\n\x08NodeTree\x12*\n\x05nodes\x18\x01\x20\x03(\x0b2\x14.NodeT\
-    ree.NodesEntryR\x05nodes\x1a8\n\nNodesEntry\x12\x10\n\x03key\x18\x01\x20\
-    \x01(\rR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05value:\x028\
-    \x01\"\x94\x01\n\nNodeUpdate\x12*\n\x04type\x18\x01\x20\x01(\x0e2\x16.No\
-    deUpdate.UpdateTypeR\x04type\x12\x17\n\x07node_id\x18\x02\x20\x01(\rR\
-    \x06nodeId\x12\x1b\n\tnode_name\x18\x03\x20\x01(\tR\x08nodeName\"$\n\nUp\
-    dateType\x12\t\n\x05ADDED\x10\0\x12\x0b\n\x07REMOVED\x10\x01\"\x80\x01\n\
-    \x08Rejected\x121\n\x06reason\x18\x01\x20\x01(\x0e2\x19.Rejected.Rejecti\
-    onReasonR\x06reason\"A\n\x0fRejectionReason\x12\x0f\n\x0bBAD_VERSION\x10\
-    \0\x12\x0c\n\x08BAD_NAME\x10\x01\x12\x0f\n\x0bBAD_MESSAGE\x10\x02\"\x8a\
-    \x01\n\tHangingUp\x12/\n\x06reason\x18\x01\x20\x01(\x0e2\x17.HangingUp.H\
-    angUpReasonR\x06reason\"L\n\x0cHangUpReason\x12\x15\n\x11MESSAGE_TOO_LAR\
-    GE\x10\0\x12\x13\n\x0fINVALID_MESSAGE\x10\x01\x12\x10\n\x0cPING_TIMEOUT\
-    \x10\x02b\x06proto3\
+    \x04name\"\x1a\n\x04Ping\x12\x12\n\x04rand\x18\x01\x20\x01(\x04R\x04rand\
+    \"\xa9\x01\n\nRegistered\x12\x17\n\x07node_id\x18\x01\x20\x01(\rR\x06nod\
+    eId\x12\x1b\n\tnum_nodes\x18\x02\x20\x01(\rR\x08numNodes\x12\x1d\n\x04tr\
+    ee\x18\x03\x20\x01(\x0b2\t.NodeTreeR\x04tree\x12\x1c\n\tclipboard\x18\
+    \x04\x20\x01(\x0cR\tclipboard\x12(\n\x10max_message_size\x18\x05\x20\x01\
+    (\rR\x0emaxMessageSize\"\x1a\n\x04Pong\x12\x12\n\x04rand\x18\x01\x20\x01\
+    (\x04R\x04rand\"p\n\x08NodeTree\x12*\n\x05nodes\x18\x01\x20\x03(\x0b2\
+    \x14.NodeTree.NodesEntryR\x05nodes\x1a8\n\nNodesEntry\x12\x10\n\x03key\
+    \x18\x01\x20\x01(\rR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05va\
+    lue:\x028\x01\"\x94\x01\n\nNodeUpdate\x12*\n\x04type\x18\x01\x20\x01(\
+    \x0e2\x16.NodeUpdate.UpdateTypeR\x04type\x12\x17\n\x07node_id\x18\x02\
+    \x20\x01(\rR\x06nodeId\x12\x1b\n\tnode_name\x18\x03\x20\x01(\tR\x08nodeN\
+    ame\"$\n\nUpdateType\x12\t\n\x05ADDED\x10\0\x12\x0b\n\x07REMOVED\x10\x01\
+    \"\x80\x01\n\x08Rejected\x121\n\x06reason\x18\x01\x20\x01(\x0e2\x19.Reje\
+    cted.RejectionReasonR\x06reason\"A\n\x0fRejectionReason\x12\x0f\n\x0bBAD\
+    _VERSION\x10\0\x12\x0c\n\x08BAD_NAME\x10\x01\x12\x0f\n\x0bBAD_MESSAGE\
+    \x10\x02\"\x8a\x01\n\tHangingUp\x12/\n\x06reason\x18\x01\x20\x01(\x0e2\
+    \x17.HangingUp.HangUpReasonR\x06reason\"L\n\x0cHangUpReason\x12\x15\n\
+    \x11MESSAGE_TOO_LARGE\x10\0\x12\x13\n\x0fINVALID_MESSAGE\x10\x01\x12\x10\
+    \n\x0cPING_TIMEOUT\x10\x02b\x06proto3\
 ";
 
 static mut file_descriptor_proto_lazy: ::protobuf::lazy::Lazy<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::lazy::Lazy {

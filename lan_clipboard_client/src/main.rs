@@ -16,6 +16,7 @@ extern crate clap;
 #[cfg(not(windows))]
 extern crate daemonize;
 extern crate snap;
+extern crate rand;
 
 use lan_clipboard::*;
 use rustls::{ClientConfig, ClientSession, Session};

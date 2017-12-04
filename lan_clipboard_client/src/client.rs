@@ -4,6 +4,7 @@ use clipboard::{ClipboardContext, ClipboardProvider};
 use rustls::{ClientSession, Session};
 use snap::Writer as SnappyWriter;
 use chrono::{Utc, DateTime};
+use rand::random;
 use parking_lot::Mutex;
 use crypto::sha3::Sha3;
 use crypto::digest::Digest;
@@ -23,7 +24,7 @@ pub struct Client {
   pub state: State,
   pub tx: Vec<Message>,
   pub buf: Vec<u8>,
-  pub last_ping: (u32, DateTime<Utc>),
+  pub last_ping: (u64, DateTime<Utc>),
   pub last_update_hash: Vec<u8>,
   pub clipboard: ClipboardContext
 }
@@ -118,9 +119,9 @@ impl Client {
         if now.signed_duration_since(client.last_ping.1).num_seconds().abs() > 15 {
           let mut poll = poll.lock();
           client.last_ping.1 = now;
-          client.last_ping.0 += 1;
+          client.last_ping.0 = random();
           let mut ping = Ping::new();
-          ping.set_seq(client.last_ping.0);
+          ping.set_rand(client.last_ping.0);
           println!("ping {}", client.last_ping.0);
           if let Err(e) = client.queue_message(ping.into(), &mut poll) {
             println!("could not queue message: {}", e);
@@ -212,7 +213,7 @@ impl Client {
         }
 
         let pong = message.take_pong();
-        println!("pong {}", pong.get_seq());
+        println!("pong {}", pong.get_rand());
       }
       _ => println!("received unsupported message")
     }

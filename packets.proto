@@ -66,7 +66,7 @@ message Hello {
 * A Pong message will be sent by the server in response to a valid Ping message.
 */
 message Ping {
-  uint32 seq = 1; // the sequence number of this ping/pong
+  uint64 rand = 1; // random ping content
 }
 
 // S -> C
@@ -87,7 +87,7 @@ message Registered {
 * A Pong message is sent back to the client after receiving a valid Ping message.
 */
 message Pong {
-  uint32 seq = 1; // the sequence number of this ping/pong
+  uint64 rand = 1; // random content from the Ping this Pong is responding to
 }
 
 /*
