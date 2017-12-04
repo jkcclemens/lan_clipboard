@@ -75,7 +75,7 @@ pub fn load_config<'a>(args: &ArgMatches<'a>) -> Result<Config, String> {
     }
   }
 
-  config.certificate.file = args.value_of("certificate").map(Into::into).or(config.certificate.file);
+  config.certificate.file = args.value_of("cert_file").map(Into::into).or(config.certificate.file);
 
   config.connection.name = args.value_of("client_name").map(Into::into).or(config.connection.name);
 
