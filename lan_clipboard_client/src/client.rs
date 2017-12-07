@@ -38,8 +38,7 @@ impl Client {
       tx: Vec::new(),
       buf: Vec::new(),
       last_ping: (0, Utc::now()),
-      last_update_hash: Vec::new(),
-      clipboard: ClipboardContext::new().map_err(|e| e.to_string())?
+      last_update_hash: Vec::new()
     })
   }
 
@@ -128,9 +127,9 @@ impl Client {
           }
         }
         let shared = client.state.shared.clone();
-        let local = match client.clipboard.get_contents() {
+        let local = match ClipboardContext::new().and_then(|ctx| ctx.get_contents()) {
           Ok(c) => c.into_bytes(),
-          Err(_) => continue
+          Err(_) => continue // FIXME
         };
         let mut local_hash = Vec::with_capacity(64);
         unsafe { local_hash.set_len(64); }
