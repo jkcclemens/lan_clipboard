@@ -147,7 +147,10 @@ fn main() {
         if client.session.wants_read() {
           match client.do_tls_read() {
             Ok(0) if !client.session.wants_write() => break 'outer,
-            Err(_) => break 'outer,
+            Err(e) => {
+              println!("{}", e);
+              break 'outer;
+            },
             _ => {}
           }
         }
