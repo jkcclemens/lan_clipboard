@@ -25,8 +25,7 @@ pub struct Client {
   pub tx: Vec<Message>,
   pub buf: Vec<u8>,
   pub last_ping: (u64, DateTime<Utc>),
-  pub last_update_hash: Vec<u8>,
-  pub clipboard: ClipboardContext
+  pub last_update_hash: Vec<u8>
 }
 
 impl Client {
@@ -127,7 +126,7 @@ impl Client {
           }
         }
         let shared = client.state.shared.clone();
-        let local = match ClipboardContext::new().and_then(|ctx| ctx.get_contents()) {
+        let local = match ClipboardContext::new().and_then(|mut ctx| ctx.get_contents()) {
           Ok(c) => c.into_bytes(),
           Err(_) => continue // FIXME
         };
