@@ -2,7 +2,7 @@ use state::State;
 use lan_clipboard::*;
 use clipboard::{ClipboardContext, ClipboardProvider};
 use rustls::{ClientSession, Session};
-use snap::Writer as SnappyWriter;
+use snap::{self, Writer as SnappyWriter, Reader as SnappyReader};
 use chrono::{Utc, DateTime};
 use rand::random;
 use parking_lot::Mutex;
@@ -166,7 +166,24 @@ impl Client {
           return;
         }
         let mut cu = message.take_clipboard_update();
-        let new = cu.take_contents();
+        let new = if cu.get_compressed() {
+          let contents = cu.take_contents();
+          let decompress_len = match snap::decompress_len(&contents) {
+            Ok(l) => l,
+            Err(e) => {
+              println!("could not determine decompression length: {}", e);
+              return;
+            }
+          };
+          let mut data: Vec<u8> = Vec::with_capacity(decompress_len);
+          if let Err(e) = SnappyReader::new(&*contents).read_to_end(&mut data) {
+            println!("could not decompress clipboard: {}", e);
+            return;
+          }
+          data
+        } else {
+          cu.take_contents()
+        };
         self.state.shared = new;
         self.state.update_clipboard();
       },
