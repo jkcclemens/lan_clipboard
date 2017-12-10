@@ -122,7 +122,7 @@ impl Server {
       match message.get_field_type() {
         Message_MessageType::HELLO => self.hello(tok, message, poll)?,
         Message_MessageType::CLIPBOARD_UPDATE => self.clipboard_update(message, poll)?,
-        Message_MessageType::PING => self.ping(tok, message, poll)?,
+        Message_MessageType::PING => self.ping(tok, &message, poll)?,
         _ => {}
       }
     }
@@ -196,14 +196,14 @@ impl Server {
     reg.set_node_id(token.0 as u32);
     reg.set_num_nodes(n_tree.nodes.len() as u32);
     reg.set_tree(n_tree);
-    reg.set_clipboard(Vec::new());
+    reg.set_clipboard(self.create_update()?);
     reg.set_max_message_size(self.app_config.connection.max_message_size);
 
     self.nodes[token.0].registered = true;
     self.nodes[token.0].queue_message(reg.into(), poll)
   }
 
-  fn ping(&mut self, token: Token, message: Message, poll: &mut Poll) -> io::Result<()> {
+  fn ping(&mut self, token: Token, message: &Message, poll: &mut Poll) -> io::Result<()> {
     if !message.has_ping() {
       return Ok(());
     }
@@ -213,6 +213,20 @@ impl Server {
 
     self.nodes[token.0].last_ping = Some(Utc::now());
     self.nodes[token.0].queue_message(pong.into(), poll)
+  }
+
+  fn create_update(&self) -> io::Result<ClipboardUpdate> {
+    let mut update = ClipboardUpdate::new();
+    let (compressed, data) = if self.state.shared.len() > 17 {
+      let mut data = Vec::new();
+      SnappyWriter::new(&mut data).write_all(&self.state.shared)?;
+      (true, data)
+    } else {
+      (false, self.state.shared.clone())
+    };
+    update.set_contents(data);
+    update.set_compressed(compressed);
+    Ok(update)
   }
 
   fn clipboard_update(&mut self, mut message: Message, poll: &mut Poll) -> io::Result<()> {
@@ -232,17 +246,7 @@ impl Server {
 
     self.state.shared = new;
 
-    let mut update = ClipboardUpdate::new();
-    let (compressed, data) = if self.state.shared.len() > 17 {
-      let mut data = Vec::new();
-      SnappyWriter::new(&mut data).write_all(&self.state.shared)?;
-      (true, data)
-    } else {
-      (false, self.state.shared.clone())
-    };
-    update.set_contents(data);
-    update.set_compressed(compressed);
-
+    let update = self.create_update()?;
     let m: Message = update.into();
 
     for (_, node) in self.nodes.iter_mut() {

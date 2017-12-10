@@ -1577,7 +1577,7 @@ pub struct Registered {
     pub node_id: u32,
     pub num_nodes: u32,
     pub tree: ::protobuf::SingularPtrField<NodeTree>,
-    pub clipboard: ::std::vec::Vec<u8>,
+    pub clipboard: ::protobuf::SingularPtrField<ClipboardUpdate>,
     pub max_message_size: u32,
     // special fields
     unknown_fields: ::protobuf::UnknownFields,
@@ -1689,37 +1689,44 @@ impl Registered {
         &mut self.tree
     }
 
-    // bytes clipboard = 4;
+    // .ClipboardUpdate clipboard = 4;
 
     pub fn clear_clipboard(&mut self) {
         self.clipboard.clear();
     }
 
+    pub fn has_clipboard(&self) -> bool {
+        self.clipboard.is_some()
+    }
+
     // Param is passed by value, moved
-    pub fn set_clipboard(&mut self, v: ::std::vec::Vec<u8>) {
-        self.clipboard = v;
+    pub fn set_clipboard(&mut self, v: ClipboardUpdate) {
+        self.clipboard = ::protobuf::SingularPtrField::some(v);
     }
 
     // Mutable pointer to the field.
     // If field is not initialized, it is initialized with default value first.
-    pub fn mut_clipboard(&mut self) -> &mut ::std::vec::Vec<u8> {
-        &mut self.clipboard
+    pub fn mut_clipboard(&mut self) -> &mut ClipboardUpdate {
+        if self.clipboard.is_none() {
+            self.clipboard.set_default();
+        }
+        self.clipboard.as_mut().unwrap()
     }
 
     // Take field
-    pub fn take_clipboard(&mut self) -> ::std::vec::Vec<u8> {
-        ::std::mem::replace(&mut self.clipboard, ::std::vec::Vec::new())
+    pub fn take_clipboard(&mut self) -> ClipboardUpdate {
+        self.clipboard.take().unwrap_or_else(|| ClipboardUpdate::new())
     }
 
-    pub fn get_clipboard(&self) -> &[u8] {
+    pub fn get_clipboard(&self) -> &ClipboardUpdate {
+        self.clipboard.as_ref().unwrap_or_else(|| ClipboardUpdate::default_instance())
+    }
+
+    fn get_clipboard_for_reflect(&self) -> &::protobuf::SingularPtrField<ClipboardUpdate> {
         &self.clipboard
     }
 
-    fn get_clipboard_for_reflect(&self) -> &::std::vec::Vec<u8> {
-        &self.clipboard
-    }
-
-    fn mut_clipboard_for_reflect(&mut self) -> &mut ::std::vec::Vec<u8> {
+    fn mut_clipboard_for_reflect(&mut self) -> &mut ::protobuf::SingularPtrField<ClipboardUpdate> {
         &mut self.clipboard
     }
 
@@ -1754,6 +1761,11 @@ impl ::protobuf::Message for Registered {
                 return false;
             }
         };
+        for v in &self.clipboard {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
         true
     }
 
@@ -1779,7 +1791,7 @@ impl ::protobuf::Message for Registered {
                     ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.tree)?;
                 },
                 4 => {
-                    ::protobuf::rt::read_singular_proto3_bytes_into(wire_type, is, &mut self.clipboard)?;
+                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.clipboard)?;
                 },
                 5 => {
                     if wire_type != ::protobuf::wire_format::WireTypeVarint {
@@ -1810,8 +1822,9 @@ impl ::protobuf::Message for Registered {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         }
-        if !self.clipboard.is_empty() {
-            my_size += ::protobuf::rt::bytes_size(4, &self.clipboard);
+        if let Some(ref v) = self.clipboard.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         }
         if self.max_message_size != 0 {
             my_size += ::protobuf::rt::value_size(5, self.max_message_size, ::protobuf::wire_format::WireTypeVarint);
@@ -1833,8 +1846,10 @@ impl ::protobuf::Message for Registered {
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
         }
-        if !self.clipboard.is_empty() {
-            os.write_bytes(4, &self.clipboard)?;
+        if let Some(ref v) = self.clipboard.as_ref() {
+            os.write_tag(4, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
         }
         if self.max_message_size != 0 {
             os.write_uint32(5, self.max_message_size)?;
@@ -1898,7 +1913,7 @@ impl ::protobuf::MessageStatic for Registered {
                     Registered::get_tree_for_reflect,
                     Registered::mut_tree_for_reflect,
                 ));
-                fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeBytes>(
+                fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<ClipboardUpdate>>(
                     "clipboard",
                     Registered::get_clipboard_for_reflect,
                     Registered::mut_clipboard_for_reflect,
@@ -3072,25 +3087,25 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     ressed\x18\x02\x20\x01(\x08R\ncompressed\"5\n\x05Hello\x12\x18\n\x07vers\
     ion\x18\x01\x20\x01(\rR\x07version\x12\x12\n\x04name\x18\x02\x20\x01(\tR\
     \x04name\"\x1a\n\x04Ping\x12\x12\n\x04rand\x18\x01\x20\x01(\x04R\x04rand\
-    \"\xa9\x01\n\nRegistered\x12\x17\n\x07node_id\x18\x01\x20\x01(\rR\x06nod\
+    \"\xbb\x01\n\nRegistered\x12\x17\n\x07node_id\x18\x01\x20\x01(\rR\x06nod\
     eId\x12\x1b\n\tnum_nodes\x18\x02\x20\x01(\rR\x08numNodes\x12\x1d\n\x04tr\
-    ee\x18\x03\x20\x01(\x0b2\t.NodeTreeR\x04tree\x12\x1c\n\tclipboard\x18\
-    \x04\x20\x01(\x0cR\tclipboard\x12(\n\x10max_message_size\x18\x05\x20\x01\
-    (\rR\x0emaxMessageSize\"\x1a\n\x04Pong\x12\x12\n\x04rand\x18\x01\x20\x01\
-    (\x04R\x04rand\"p\n\x08NodeTree\x12*\n\x05nodes\x18\x01\x20\x03(\x0b2\
-    \x14.NodeTree.NodesEntryR\x05nodes\x1a8\n\nNodesEntry\x12\x10\n\x03key\
-    \x18\x01\x20\x01(\rR\x03key\x12\x14\n\x05value\x18\x02\x20\x01(\tR\x05va\
-    lue:\x028\x01\"\x94\x01\n\nNodeUpdate\x12*\n\x04type\x18\x01\x20\x01(\
-    \x0e2\x16.NodeUpdate.UpdateTypeR\x04type\x12\x17\n\x07node_id\x18\x02\
-    \x20\x01(\rR\x06nodeId\x12\x1b\n\tnode_name\x18\x03\x20\x01(\tR\x08nodeN\
-    ame\"$\n\nUpdateType\x12\t\n\x05ADDED\x10\0\x12\x0b\n\x07REMOVED\x10\x01\
-    \"\x80\x01\n\x08Rejected\x121\n\x06reason\x18\x01\x20\x01(\x0e2\x19.Reje\
-    cted.RejectionReasonR\x06reason\"A\n\x0fRejectionReason\x12\x0f\n\x0bBAD\
-    _VERSION\x10\0\x12\x0c\n\x08BAD_NAME\x10\x01\x12\x0f\n\x0bBAD_MESSAGE\
-    \x10\x02\"\x8a\x01\n\tHangingUp\x12/\n\x06reason\x18\x01\x20\x01(\x0e2\
-    \x17.HangingUp.HangUpReasonR\x06reason\"L\n\x0cHangUpReason\x12\x15\n\
-    \x11MESSAGE_TOO_LARGE\x10\0\x12\x13\n\x0fINVALID_MESSAGE\x10\x01\x12\x10\
-    \n\x0cPING_TIMEOUT\x10\x02b\x06proto3\
+    ee\x18\x03\x20\x01(\x0b2\t.NodeTreeR\x04tree\x12.\n\tclipboard\x18\x04\
+    \x20\x01(\x0b2\x10.ClipboardUpdateR\tclipboard\x12(\n\x10max_message_siz\
+    e\x18\x05\x20\x01(\rR\x0emaxMessageSize\"\x1a\n\x04Pong\x12\x12\n\x04ran\
+    d\x18\x01\x20\x01(\x04R\x04rand\"p\n\x08NodeTree\x12*\n\x05nodes\x18\x01\
+    \x20\x03(\x0b2\x14.NodeTree.NodesEntryR\x05nodes\x1a8\n\nNodesEntry\x12\
+    \x10\n\x03key\x18\x01\x20\x01(\rR\x03key\x12\x14\n\x05value\x18\x02\x20\
+    \x01(\tR\x05value:\x028\x01\"\x94\x01\n\nNodeUpdate\x12*\n\x04type\x18\
+    \x01\x20\x01(\x0e2\x16.NodeUpdate.UpdateTypeR\x04type\x12\x17\n\x07node_\
+    id\x18\x02\x20\x01(\rR\x06nodeId\x12\x1b\n\tnode_name\x18\x03\x20\x01(\t\
+    R\x08nodeName\"$\n\nUpdateType\x12\t\n\x05ADDED\x10\0\x12\x0b\n\x07REMOV\
+    ED\x10\x01\"\x80\x01\n\x08Rejected\x121\n\x06reason\x18\x01\x20\x01(\x0e\
+    2\x19.Rejected.RejectionReasonR\x06reason\"A\n\x0fRejectionReason\x12\
+    \x0f\n\x0bBAD_VERSION\x10\0\x12\x0c\n\x08BAD_NAME\x10\x01\x12\x0f\n\x0bB\
+    AD_MESSAGE\x10\x02\"\x8a\x01\n\tHangingUp\x12/\n\x06reason\x18\x01\x20\
+    \x01(\x0e2\x17.HangingUp.HangUpReasonR\x06reason\"L\n\x0cHangUpReason\
+    \x12\x15\n\x11MESSAGE_TOO_LARGE\x10\0\x12\x13\n\x0fINVALID_MESSAGE\x10\
+    \x01\x12\x10\n\x0cPING_TIMEOUT\x10\x02b\x06proto3\
 ";
 
 static mut file_descriptor_proto_lazy: ::protobuf::lazy::Lazy<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::lazy::Lazy {

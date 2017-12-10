@@ -79,7 +79,7 @@ message Registered {
   uint32 node_id = 1; // client's node id
   uint32 num_nodes = 2; // number of nodes in the tree
   NodeTree tree = 3; // the node tree, updated with this client to be included
-  bytes clipboard = 4; // the current shared clipboard
+  ClipboardUpdate clipboard = 4; // the current shared clipboard
   uint32 max_message_size = 5; // the maximum size
 }
 
