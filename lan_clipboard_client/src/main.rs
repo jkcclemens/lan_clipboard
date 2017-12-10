@@ -148,6 +148,16 @@ fn main() {
           match client.do_tls_read() {
             Ok(0) if !client.session.wants_write() => break 'outer,
             Err(e) => {
+              #[cfg(windows)]
+              {
+                if let Some(10035) = e.raw_os_error() {
+                  if let Err(e) = client.reregister(&mut poll.lock()) {
+                    println!("could not reregister: {}", e);
+                    return;
+                  }
+                  continue;
+                }
+              }
               println!("{}", e);
               break 'outer;
             },
