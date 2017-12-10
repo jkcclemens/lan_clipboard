@@ -212,7 +212,15 @@ impl Client {
 
         let pong = message.take_pong();
         println!("pong {}", pong.get_rand());
-      }
+      },
+      Message_MessageType::HANGING_UP => {
+        if !message.has_hanging_up() {
+          return;
+        }
+
+        let hup = message.take_hanging_up();
+        println!("Server is hanging up on us: {:?}", hup.get_reason());
+      },
       _ => println!("received unsupported message")
     }
   }
