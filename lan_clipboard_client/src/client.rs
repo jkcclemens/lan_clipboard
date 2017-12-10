@@ -179,7 +179,7 @@ impl Client {
         if !message.has_clipboard_update() {
           return;
         }
-        let mut cu = message.take_clipboard_update();
+        let cu = message.take_clipboard_update();
         if let Err(e) = self.process_update(cu) {
           println!("could not process clipboard update: {}", e);
         }
