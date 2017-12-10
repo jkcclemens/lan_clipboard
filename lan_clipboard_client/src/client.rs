@@ -159,6 +159,20 @@ impl Client {
     });
   }
 
+  fn process_update(&mut self, mut cu: ClipboardUpdate) -> io::Result<()> {
+    let new = if cu.get_compressed() {
+      let contents = cu.take_contents();
+      let mut data: Vec<u8> = Vec::with_capacity(snap::decompress_len(&contents)?);
+      SnappyReader::new(&*contents).read_to_end(&mut data)?;
+      data
+    } else {
+      cu.take_contents()
+    };
+    self.state.shared = new;
+    self.state.update_clipboard();
+    Ok(())
+  }
+
   pub fn receive(&mut self, mut message: Message, _poll: &mut Poll) {
     match message.get_field_type() {
       Message_MessageType::CLIPBOARD_UPDATE => {
@@ -166,26 +180,9 @@ impl Client {
           return;
         }
         let mut cu = message.take_clipboard_update();
-        let new = if cu.get_compressed() {
-          let contents = cu.take_contents();
-          let decompress_len = match snap::decompress_len(&contents) {
-            Ok(l) => l,
-            Err(e) => {
-              println!("could not determine decompression length: {}", e);
-              return;
-            }
-          };
-          let mut data: Vec<u8> = Vec::with_capacity(decompress_len);
-          if let Err(e) = SnappyReader::new(&*contents).read_to_end(&mut data) {
-            println!("could not decompress clipboard: {}", e);
-            return;
-          }
-          data
-        } else {
-          cu.take_contents()
-        };
-        self.state.shared = new;
-        self.state.update_clipboard();
+        if let Err(e) = self.process_update(cu) {
+          println!("could not process clipboard update: {}", e);
+        }
       },
       Message_MessageType::REGISTERED => {
         if !message.has_registered() {
@@ -194,8 +191,9 @@ impl Client {
         let mut registered: Registered = message.take_registered();
         self.state.registered = true;
         self.state.tree = registered.take_tree().take_nodes();
-        self.state.shared = registered.get_clipboard().to_vec();
-        self.state.update_clipboard();
+        if let Err(e) = self.process_update(registered.take_clipboard()) {
+          println!("could not process clipboard update: {}", e);
+        }
         println!("Registered as node {} with node tree:\n{:#?}", registered.get_node_id(), self.state.tree);
       },
       Message_MessageType::REJECTED => {
