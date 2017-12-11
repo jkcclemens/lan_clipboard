@@ -17,6 +17,9 @@ extern crate clap;
 extern crate daemonize;
 extern crate snap;
 extern crate rand;
+#[macro_use]
+extern crate log;
+extern crate fern;
 
 use lan_clipboard::*;
 use rustls::{ClientConfig, ClientSession, Session};
@@ -33,6 +36,7 @@ mod cli;
 mod client;
 mod daemon;
 mod state;
+mod logging;
 
 use config::Config;
 use client::Client;
@@ -46,6 +50,11 @@ fn main() {
     }
   };
 
+  if let Err(e) = logging::set_up_logger(&app_config) {
+    println!("could not set up logging: {}", e.into_inner());
+    return;
+  }
+
   let hostname = app_config.connection.hostname.as_ref().unwrap();
   let name = app_config.connection.name.as_ref().unwrap();
 
@@ -53,12 +62,12 @@ fn main() {
     Ok(mut s) => match s.next() {
       Some(s) => s,
       None => {
-        println!("No addresses provided.");
+        error!("no addresses provided for connection");
         return;
       }
     },
     Err(e) => {
-      println!("Invalid address: {}", e);
+      error!("invalid address: {}", e);
       return;
     }
   };
@@ -66,7 +75,7 @@ fn main() {
   let f = match File::open(app_config.certificate.file.as_ref().unwrap()) {
     Ok(f) => f,
     Err(e) => {
-      println!("could not open cert file: {}", e);
+      error!("could not open cert file: {}", e);
       return;
     }
   };
@@ -75,26 +84,26 @@ fn main() {
   let (added, _) = match config.root_store.add_pem_file(&mut io::BufReader::new(f)) {
     Ok(a) => a,
     Err(e) => {
-      println!("could not add certificate chain: {:?}", e);
+      error!("could not add certificate chain: {:?}", e);
       return;
     }
   };
   if added == 0 {
-    println!("No certs found.");
+    error!("no certs found");
     return;
   }
   let config = Arc::new(config);
   let session = ClientSession::new(&config, hostname);
 
   if let Err(e) = daemon::handle_daemon(&app_config) {
-    println!("could not daemonize: {}", e);
+    error!("could not daemonize: {}", e);
     return;
   }
 
   let poll = match Poll::new() {
     Ok(p) => p,
     Err(e) => {
-      println!("could not create poll: {}", e);
+      error!("could not create poll: {}", e);
       return;
     }
   };
@@ -102,12 +111,12 @@ fn main() {
   let connection = match TcpStream::connect(&addr) {
     Ok(t) => t,
     Err(e) => {
-      println!("could not create tcp stream: {}", e);
+      error!("could not create tcp stream: {}", e);
       return;
     }
   };
   if let Err(e) = poll.register(&connection, client::CLIENT, Ready::readable() | Ready::writable(), PollOpt::edge()) {
-    println!("could not register on poll: {}", e);
+    error!("could not register on poll: {}", e);
     return;
   }
 
@@ -116,7 +125,7 @@ fn main() {
   let client = match Client::new(connection, session) {
     Ok(c) => c,
     Err(e) => {
-      println!("could not create client: {}", e);
+      error!("could not create client: {}", e);
       return;
     }
   };
@@ -127,7 +136,7 @@ fn main() {
 
   'outer: loop {
     if let Err(e) = poll.lock().poll(&mut events, Some(std::time::Duration::from_millis(100))) {
-      println!("could not poll: {}", e);
+      error!("could not poll: {}", e);
       return;
     }
     for event in events.iter() {
@@ -138,7 +147,7 @@ fn main() {
         hello.set_version(1);
         hello.set_name(name.clone());
         if let Err(e) = client.queue_message(hello.into(), &mut poll.lock()) {
-          println!("could not queue message: {}", e);
+          warn!("could not queue message: {}", e);
         }
         client.state.hello_sent = true;
       }
@@ -152,13 +161,14 @@ fn main() {
               {
                 if let Some(10035) = e.raw_os_error() {
                   if let Err(e) = client.reregister(&mut poll.lock()) {
-                    println!("could not reregister: {}", e);
+                    error!("could not reregister: {}", e);
                     return;
                   }
+                  debug!("ignoring async error on windows");
                   continue;
                 }
               }
-              println!("{}", e);
+              error!("{}", e);
               break 'outer;
             },
             _ => {}
@@ -179,7 +189,7 @@ fn main() {
           client.receive(message, &mut poll.lock());
         }
         if let Err(e) = client.reregister(&mut poll.lock()) {
-          println!("could not reregister: {}", e);
+          error!("could not reregister: {}", e);
           return;
         }
       }
@@ -194,16 +204,18 @@ fn main() {
           std::mem::swap(&mut client.tx, &mut tx);
           let mut writer = BufWriter::new(&mut client.session);
           for t in tx {
-            let _ = writer.write_message(&t); // FIXME: don't ignore errors
+            if let Err(e) = writer.write_message(&t) {
+              error!("could not write message: {}", e);
+            }
           }
         }
         if let Err(e) = client.reregister(&mut poll.lock()) {
-          println!("could not reregister: {}", e);
+          error!("could not reregister: {}", e);
           return;
         }
       }
     }
   }
-  println!("An error occurred when communicating with the server. Shutting down.");
+  error!("an error occurred when communicating with the server. shutting down");
   client.lock().hangup(&mut poll.lock());
 }

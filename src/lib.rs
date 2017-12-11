@@ -8,6 +8,8 @@ pub use packets::*;
 use protobuf::Message as PMessage;
 use integer_encoding::{VarIntReader, VarIntWriter};
 use std::io::{Read, Write, Error as IoError};
+use std::error::Error;
+use std::fmt::{self, Display, Formatter};
 
 pub type MessageResult<T> = Result<T, MessageError>;
 
@@ -15,6 +17,28 @@ pub type MessageResult<T> = Result<T, MessageError>;
 pub enum MessageError {
   Io(IoError),
   Protobuf(protobuf::error::ProtobufError)
+}
+
+impl Display for MessageError {
+  fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    write!(f, "{}", self.description())
+  }
+}
+
+impl Error for MessageError {
+  fn description(&self) -> &str {
+    match *self {
+      MessageError::Io(ref e) => e.description(),
+      MessageError::Protobuf(ref e) => e.description()
+    }
+  }
+
+  fn cause(&self) -> Option<&Error> {
+    match *self {
+      MessageError::Io(ref e) => Some(e),
+      MessageError::Protobuf(ref e) => Some(e)
+    }
+  }
 }
 
 pub trait MessageReader {

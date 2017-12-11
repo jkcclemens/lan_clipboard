@@ -47,13 +47,12 @@ impl Client {
 
   pub fn hangup(&mut self, poll: &mut Poll) {
     if let Err(e) = poll.deregister(&self.tcp) {
-      println!("error deregistering: {}", e);
+      warn!("error deregistering: {}", e);
     }
     self.tcp.shutdown(Shutdown::Both).ok();
   }
 
-  /// What IO events we're currently waiting for,
-  /// based on wants_read/wants_write.
+  /// What IO events we're currently waiting for, based on wants_read/wants_write.
   pub fn event_set(&self) -> Ready {
     let rd = self.session.wants_read();
     let wr = self.session.wants_write();
@@ -78,10 +77,12 @@ impl Client {
 
   pub fn do_tls_write(&mut self) {
     if let Err(e) = self.session.write_tls(&mut self.tcp) {
-      panic!("write err: {}", e);
+      error!("write err: {}", e);
+      panic!();
     }
     if let Err(e) = self.session.process_new_packets() {
-      panic!("process err (post-write): {}", e);
+      error!("process err (post-write): {}", e);
+      panic!();
     }
   }
 
@@ -120,15 +121,18 @@ impl Client {
           client.last_ping.0 = random();
           let mut ping = Ping::new();
           ping.set_rand(client.last_ping.0);
-          println!("ping {}", client.last_ping.0);
+          trace!("ping {}", client.last_ping.0);
           if let Err(e) = client.queue_message(ping.into(), &mut poll) {
-            println!("could not queue message: {}", e);
+            warn!("could not queue message: {}", e);
           }
         }
         let shared = client.state.shared.clone();
         let local = match ClipboardContext::new().and_then(|mut ctx| ctx.get_contents()) {
           Ok(c) => c.into_bytes(),
-          Err(_) => continue // FIXME
+          Err(e) => {
+            warn!("could not get clipboard conents: {}", e);
+            continue;
+          }
         };
         let mut local_hash = Vec::with_capacity(64);
         unsafe { local_hash.set_len(64); }
@@ -141,7 +145,7 @@ impl Client {
         let (compressed, data) = if local.len() > 17 {
           let mut data = Vec::new();
           if let Err(e) = SnappyWriter::new(&mut data).write_all(&local) {
-            println!("error compressing data: {}", e);
+            warn!("error compressing data: {}", e);
             continue;
           }
           (true, data)
@@ -152,7 +156,7 @@ impl Client {
         cu.set_contents(data);
         cu.set_compressed(compressed);
         if let Err(e) = client.queue_message(cu.into(), &mut poll.lock()) {
-          println!("could not queue message: {}", e);
+          warn!("could not queue message: {}", e);
         }
         client.last_update_hash = local_hash;
       }
@@ -181,7 +185,7 @@ impl Client {
         }
         let cu = message.take_clipboard_update();
         if let Err(e) = self.process_update(cu) {
-          println!("could not process clipboard update: {}", e);
+          warn!("could not process clipboard update: {}", e);
         }
       },
       Message_MessageType::REGISTERED => {
@@ -192,16 +196,16 @@ impl Client {
         self.state.registered = true;
         self.state.tree = registered.take_tree().take_nodes();
         if let Err(e) = self.process_update(registered.take_clipboard()) {
-          println!("could not process clipboard update: {}", e);
+          warn!("could not process clipboard update: {}", e);
         }
-        println!("Registered as node {} with node tree:\n{:#?}", registered.get_node_id(), self.state.tree);
+        debug!("registered as node {} with node tree:\n{:#?}", registered.get_node_id(), self.state.tree);
       },
       Message_MessageType::REJECTED => {
         if !message.has_rejected() {
           return;
         }
         let rejected: Rejected = message.take_rejected();
-        println!("Rejected: {:?}", rejected.get_reason());
+        info!("the server rejected the connection: {:?}", rejected.get_reason());
         return; // FIXME: exit
       },
       Message_MessageType::NODE_UPDATE => {
@@ -217,8 +221,8 @@ impl Client {
             self.state.tree.remove(&node_update.get_node_id());
           }
         }
-        println!("Node {} was {:?}", node_update.get_node_id(), node_update.get_field_type());
-        println!("new tree: {:#?}", self.state.tree);
+        debug!("node {} was {:?}", node_update.get_node_id(), node_update.get_field_type());
+        debug!("new tree: {:#?}", self.state.tree);
       },
       Message_MessageType::PONG => {
         if !message.has_pong() {
@@ -226,7 +230,10 @@ impl Client {
         }
 
         let pong = message.take_pong();
-        println!("pong {}", pong.get_rand());
+        trace!("pong {}", pong.get_rand());
+        if pong.get_rand() != self.last_ping.0 {
+          warn!("pong does not match last sent ping. potentially lag or botched MITM");
+        }
       },
       Message_MessageType::HANGING_UP => {
         if !message.has_hanging_up() {
@@ -234,9 +241,9 @@ impl Client {
         }
 
         let hup = message.take_hanging_up();
-        println!("Server is hanging up on us: {:?}", hup.get_reason());
+        info!("the server is hanging up on us: {:?}", hup.get_reason());
       },
-      _ => println!("received unsupported message")
+      _ => warn!("received unsupported message")
     }
   }
 }

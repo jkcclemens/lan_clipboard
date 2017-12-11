@@ -13,7 +13,9 @@ impl State {
   pub fn update_clipboard(&self) {
     if let Ok(s) = String::from_utf8(self.shared.clone()) {
       if let Ok(mut c) = ClipboardContext::new() {
-        c.set_contents(s).ok();
+        if let Err(e) = c.set_contents(s) {
+          warn!("could not set clipboard: {}", e);
+        }
       }
     }
   }

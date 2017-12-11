@@ -21,6 +21,16 @@ name = "OS name"
 # using.
 file = "cert.pem"
 
+[logging]
+# (required) The level at which to log information. Messages of the specified level or higher will
+# be printed, and those lower will be filtered out. The levels from lowest to highest are off,
+# trace, debug, info, warn, or error. If you aren't sure what this should be, choose info.
+level = "info"
+# (optional: will not write to file) The file to write log messages to. Useful when in daemon mode.
+# Note that this does not redirect stdout to the file. If you want to silence stdout and also write
+# to the file, specify this value and use `> /dev/null` on the command line.
+# file = "client.log"
+
 [daemon]
 # (optional: false, cli) Whether to use daemon mode. If true, the client will fork into the
 # background.
