@@ -29,7 +29,8 @@ use mio::net::TcpStream;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::fs::File;
 use std::sync::Arc;
-use std::io::{self, BufWriter};
+use std::time::Duration;
+use std::io::{self, Cursor, BufWriter};
 
 mod config;
 mod cli;
@@ -135,7 +136,7 @@ fn main() {
   let mut events = Events::with_capacity(1024);
 
   'outer: loop {
-    if let Err(e) = poll.lock().poll(&mut events, Some(std::time::Duration::from_millis(100))) {
+    if let Err(e) = poll.lock().poll(&mut events, Some(Duration::from_millis(100))) {
       error!("could not poll: {}", e);
       return;
     }
@@ -179,7 +180,7 @@ fn main() {
           break 'outer;
         }
         let (res, pos) = {
-          let mut cursor = std::io::Cursor::new(&client.buf);
+          let mut cursor = Cursor::new(&client.buf);
           (cursor.read_message(), cursor.position())
         };
         if res.is_ok() {
