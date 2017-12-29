@@ -37,7 +37,9 @@ pub struct Logging {
 pub struct Connection {
   pub hostname: Option<String>,
   pub port: Option<u16>,
-  pub name: Option<String>
+  pub name: Option<String>,
+  pub reconnect: Option<bool>,
+  pub reconnect_period: Option<u64>
 }
 
 #[derive(Debug, Default, Deserialize)]

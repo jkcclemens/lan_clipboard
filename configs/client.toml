@@ -15,6 +15,13 @@ hostname = "localhost"
 port = 38153
 # (required, cli) The name to register with the server.
 name = "OS name"
+# (optional: false) Whether to attempt reconnection after being disconnected. This will not attempt
+# a reconnect if a rejection message is sent by the server. If the server hangs up on the client,
+# a reconnect will only occur if the hangup was for a ping timeout.
+reconnect = false
+# (optional: 15) The number of seconds to wait before attempting a reconnect. Has no effect if
+# reconnects are not enabled.
+reconnect_period = 15
 
 [certificate]
 # (required, cli) The certificate chain file location. This must match the chain the server is

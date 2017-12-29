@@ -14,7 +14,8 @@ use std::net::Shutdown;
 use std::sync::Arc;
 use std::io::{self, Read, Write};
 use std::time::Duration;
-use std::thread;
+use std::thread::{self, JoinHandle};
+use std::sync::mpsc::{self, Sender};
 
 pub const CLIENT: Token = Token(0);
 
@@ -25,20 +26,26 @@ pub struct Client {
   pub tx: Vec<Message>,
   pub buf: Vec<u8>,
   pub last_ping: (u64, DateTime<Utc>),
-  pub last_update_hash: Vec<u8>
+  pub last_update_hash: Vec<u8>,
+  pub send_handle: Option<JoinHandle<()>>,
+  pub send_shutdown: Option<Sender<()>>,
+  pub hang_up_reason: Option<HangingUp_HangUpReason>
 }
 
 impl Client {
-  pub fn new(tcp: TcpStream, session: ClientSession) -> Result<Client, String> {
-    Ok(Client {
+  pub fn new(tcp: TcpStream, session: ClientSession) -> Client {
+    Client {
       tcp,
       session,
       state: State::default(),
       tx: Vec::new(),
       buf: Vec::new(),
       last_ping: (0, Utc::now()),
-      last_update_hash: Vec::new()
-    })
+      last_update_hash: Vec::new(),
+      send_handle: None,
+      send_shutdown: None,
+      hang_up_reason: None
+    }
   }
 
   pub fn read_to_buf(&mut self) -> io::Result<usize> {
@@ -50,6 +57,10 @@ impl Client {
       warn!("error deregistering: {}", e);
     }
     self.tcp.shutdown(Shutdown::Both).ok();
+    if let Some(sender) = self.send_shutdown.take() {
+      debug!("sending shutdown message");
+      sender.send(()).expect("could not send shutdown message to send thread");
+    }
   }
 
   /// What IO events we're currently waiting for, based on wants_read/wants_write.
@@ -75,15 +86,10 @@ impl Client {
     poll.reregister(&self.tcp, CLIENT, self.event_set(), PollOpt::edge() | PollOpt::oneshot())
   }
 
-  pub fn do_tls_write(&mut self) {
-    if let Err(e) = self.session.write_tls(&mut self.tcp) {
-      error!("write err: {}", e);
-      panic!();
-    }
-    if let Err(e) = self.session.process_new_packets() {
-      error!("process err (post-write): {}", e);
-      panic!();
-    }
+  pub fn do_tls_write(&mut self) -> io::Result<usize> {
+    let wrote = self.session.write_tls(&mut self.tcp)?;
+    self.session.process_new_packets().map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    Ok(wrote)
   }
 
   pub fn do_tls_read(&mut self) -> io::Result<usize> {
@@ -106,10 +112,15 @@ impl Client {
   }
 
   pub fn send_thread(client: Arc<Mutex<Client>>, poll: Arc<Mutex<Poll>>) {
-    thread::spawn(move || {
+    let (tx, rx) = mpsc::channel();
+    let after_client = Arc::clone(&client);
+    let handle = thread::spawn(move || {
       let mut sha3 = Sha3::sha3_512();
       loop {
         thread::sleep(Duration::from_millis(250));
+        if rx.try_recv().is_ok() {
+          break;
+        }
         if !client.lock().state.registered {
           continue;
         }
@@ -160,7 +171,10 @@ impl Client {
         }
         client.last_update_hash = local_hash;
       }
+      debug!("send thread ended");
     });
+    after_client.lock().send_handle = Some(handle);
+    after_client.lock().send_shutdown = Some(tx);
   }
 
   fn process_update(&mut self, mut cu: ClipboardUpdate) -> io::Result<()> {
@@ -199,6 +213,7 @@ impl Client {
           warn!("could not process clipboard update: {}", e);
         }
         debug!("registered as node {} with node tree:\n{:#?}", registered.get_node_id(), self.state.tree);
+        info!("connected");
       },
       Message_MessageType::REJECTED => {
         if !message.has_rejected() {
@@ -241,6 +256,7 @@ impl Client {
         }
 
         let hup = message.take_hanging_up();
+        self.hang_up_reason = Some(hup.get_reason());
         info!("the server is hanging up on us: {:?}", hup.get_reason());
       },
       _ => warn!("received unsupported message")

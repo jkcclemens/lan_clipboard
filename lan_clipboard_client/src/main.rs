@@ -29,6 +29,8 @@ use mio::net::TcpStream;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::fs::File;
 use std::sync::Arc;
+use std::thread;
+use std::time::Duration;
 use std::io::{self, BufWriter};
 
 mod config;
@@ -93,18 +95,31 @@ fn main() {
     return;
   }
   let config = Arc::new(config);
-  let session = ClientSession::new(&config, hostname);
 
   if let Err(e) = daemon::handle_daemon(&app_config) {
     error!("could not daemonize: {}", e);
     return;
   }
 
+  let reconnect = app_config.connection.reconnect.unwrap_or(false);
+  let reconnect_period = app_config.connection.reconnect_period.unwrap_or(15);
+
+  while main_loop(&config, hostname, &addr, name) && reconnect {
+    info!("waiting {} second{} before attempting to reconnect", reconnect_period, if reconnect_period == 1 { "" } else { "s" });
+    thread::sleep(Duration::from_secs(reconnect_period));
+    info!("attempting to reconnect");
+  }
+}
+
+// returns whether to attempt a reconnection, if enabled
+fn main_loop(config: &Arc<ClientConfig>, hostname: &str, addr: &SocketAddr, name: &str) -> bool {
+  let session = ClientSession::new(&config, hostname);
+
   let poll = match Poll::new() {
     Ok(p) => p,
     Err(e) => {
       error!("could not create poll: {}", e);
-      return;
+      return false;
     }
   };
 
@@ -112,32 +127,25 @@ fn main() {
     Ok(t) => t,
     Err(e) => {
       error!("could not create tcp stream: {}", e);
-      return;
+      return true;
     }
   };
   if let Err(e) = poll.register(&connection, client::CLIENT, Ready::readable() | Ready::writable(), PollOpt::edge()) {
     error!("could not register on poll: {}", e);
-    return;
+    return false;
   }
 
   let poll = Arc::new(Mutex::new(poll));
 
-  let client = match Client::new(connection, session) {
-    Ok(c) => c,
-    Err(e) => {
-      error!("could not create client: {}", e);
-      return;
-    }
-  };
-  let client = Arc::new(Mutex::new(client));
+  let client = Arc::new(Mutex::new(Client::new(connection, session)));
   Client::send_thread(Arc::clone(&client), Arc::clone(&poll));
 
   let mut events = Events::with_capacity(1024);
 
-  'outer: loop {
+  let try_reconnect = 'outer: loop {
     if let Err(e) = poll.lock().poll(&mut events, Some(std::time::Duration::from_millis(100))) {
       error!("could not poll: {}", e);
-      return;
+      break false;
     }
     for event in events.iter() {
       let mut client = client.lock();
@@ -145,7 +153,7 @@ fn main() {
       if !client.state.registered && !client.state.hello_sent {
         let mut hello: Hello = Hello::new();
         hello.set_version(1);
-        hello.set_name(name.clone());
+        hello.set_name(name.to_string());
         if let Err(e) = client.queue_message(hello.into(), &mut poll.lock()) {
           warn!("could not queue message: {}", e);
         }
@@ -155,28 +163,29 @@ fn main() {
       if event.readiness().is_readable() {
         if client.session.wants_read() {
           match client.do_tls_read() {
-            Ok(0) if !client.session.wants_write() => break 'outer,
+            Ok(0) if !client.session.wants_write() => break 'outer true,
             Err(e) => {
               #[cfg(windows)]
               {
                 if let Some(10035) = e.raw_os_error() {
                   if let Err(e) = client.reregister(&mut poll.lock()) {
                     error!("could not reregister: {}", e);
-                    return;
+                    break 'outer false;
                   }
                   debug!("ignoring async error on windows");
                   continue;
                 }
               }
               error!("{}", e);
-              break 'outer;
+              break 'outer true;
             },
             _ => {}
           }
         }
 
-        if client.read_to_buf().is_err() {
-          break 'outer;
+        if let Err(e) = client.read_to_buf() {
+          error!("{}", e);
+          break 'outer true;
         }
         let (res, pos) = {
           let mut cursor = std::io::Cursor::new(&client.buf);
@@ -190,13 +199,16 @@ fn main() {
         }
         if let Err(e) = client.reregister(&mut poll.lock()) {
           error!("could not reregister: {}", e);
-          return;
+          break 'outer false;
         }
       }
 
       if event.readiness().is_writable() {
         if client.session.wants_write() {
-          client.do_tls_write();
+          if let Err(e) = client.do_tls_write() {
+            error!("could not send to server: {}", e);
+            break 'outer true;
+          }
         }
 
         if !client.tx.is_empty() {
@@ -211,11 +223,20 @@ fn main() {
         }
         if let Err(e) = client.reregister(&mut poll.lock()) {
           error!("could not reregister: {}", e);
-          return;
+          break 'outer false;
         }
       }
     }
-  }
-  error!("an error occurred when communicating with the server. shutting down");
+  };
+  error!("an error occurred when communicating with the server");
   client.lock().hangup(&mut poll.lock());
+  if let Some(handle) = client.lock().send_handle.take() {
+    handle.join().expect("could not join on send thread");
+  }
+  let hur = client.lock().hang_up_reason;
+  match hur {
+    Some(HangingUp_HangUpReason::PING_TIMEOUT) => true,
+    Some(_) => false,
+    None => try_reconnect
+  }
 }
