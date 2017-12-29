@@ -31,7 +31,7 @@ use std::fs::File;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
-use std::io::{self, BufWriter};
+use std::io::{self, Cursor, BufWriter};
 
 mod config;
 mod cli;
@@ -143,7 +143,7 @@ fn main_loop(config: &Arc<ClientConfig>, hostname: &str, addr: &SocketAddr, name
   let mut events = Events::with_capacity(1024);
 
   let try_reconnect = 'outer: loop {
-    if let Err(e) = poll.lock().poll(&mut events, Some(std::time::Duration::from_millis(100))) {
+    if let Err(e) = poll.lock().poll(&mut events, Some(Duration::from_millis(100))) {
       error!("could not poll: {}", e);
       break false;
     }
@@ -188,7 +188,7 @@ fn main_loop(config: &Arc<ClientConfig>, hostname: &str, addr: &SocketAddr, name
           break 'outer true;
         }
         let (res, pos) = {
-          let mut cursor = std::io::Cursor::new(&client.buf);
+          let mut cursor = Cursor::new(&client.buf);
           (cursor.read_message(), cursor.position())
         };
         if res.is_ok() {
