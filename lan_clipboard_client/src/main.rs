@@ -138,6 +138,10 @@ fn main_loop(config: &Arc<ClientConfig>, hostname: &str, addr: &SocketAddr, name
       return true;
     }
   };
+  if let Err(e) = connection.set_keepalive(Some(Duration::from_secs(30))) {
+    error!("could not set keepalive on socket: {}", e);
+    return false;
+  }
   if let Err(e) = poll.register(&connection, client::CLIENT, Ready::readable() | Ready::writable(), PollOpt::edge()) {
     error!("could not register on poll: {}", e);
     return false;
