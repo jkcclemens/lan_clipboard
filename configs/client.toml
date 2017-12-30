@@ -24,9 +24,10 @@ reconnect = false
 reconnect_period = 15
 
 [certificate]
-# (required, cli) The certificate chain file location. This must match the chain the server is
-# using.
-file = "cert.pem"
+# (optional: none, cli) The certificate chain file location. This must match the chain the server is
+# using. If your certificate is under a root authority on https://mkcert.org/, you do not need to
+# specify a file here.
+# file = "cert.pem"
 
 [logging]
 # (required) The level at which to log information. Messages of the specified level or higher will

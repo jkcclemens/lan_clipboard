@@ -20,6 +20,8 @@ extern crate rand;
 #[macro_use]
 extern crate log;
 extern crate fern;
+#[cfg(feature = "trusted_cas")]
+extern crate webpki_roots;
 
 use lan_clipboard::*;
 use rustls::{ClientConfig, ClientSession, Session};
@@ -74,26 +76,32 @@ fn main() {
     }
   };
 
-  let f = match File::open(app_config.certificate.file.as_ref().unwrap()) {
-    Ok(f) => f,
-    Err(e) => {
-      error!("could not open cert file: {}", e);
-      return;
-    }
-  };
-
   let mut config = ClientConfig::new();
-  let (added, _) = match config.root_store.add_pem_file(&mut io::BufReader::new(f)) {
-    Ok(a) => a,
-    Err(e) => {
-      error!("could not add certificate chain: {:?}", e);
+
+  if let Some(ref cert_file) = app_config.certificate.file.as_ref() {
+    let f = match File::open(cert_file) {
+      Ok(f) => f,
+      Err(e) => {
+        error!("could not open cert file: {}", e);
+        return;
+      }
+    };
+    let (added, _) = match config.root_store.add_pem_file(&mut io::BufReader::new(f)) {
+      Ok(a) => a,
+      Err(e) => {
+        error!("could not add certificate chain: {:?}", e);
+        return;
+      }
+    };
+    if added == 0 {
+      error!("no certs found");
       return;
     }
-  };
-  if added == 0 {
-    error!("no certs found");
-    return;
   }
+
+  #[cfg(feature = "trusted_cas")]
+  config.root_store.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
+
   let config = Arc::new(config);
 
   if let Err(e) = daemon::handle_daemon(&app_config) {

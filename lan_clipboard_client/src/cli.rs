@@ -95,8 +95,5 @@ pub fn load_config<'a>(args: &ArgMatches<'a>) -> Result<Config, String> {
   if config.connection.name.is_none() {
     return Err("no client name was specified".into());
   }
-  if config.certificate.file.is_none() {
-    return Err("no certificate chain file was specified".into());
-  }
   Ok(config)
 }

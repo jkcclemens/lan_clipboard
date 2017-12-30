@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = ["Kyle Clemens <lan_clipboard@kyleclemens.com>"]
 description = "The client component of the lan_clipboard clipboard sharer."
 
+[features]
+default = ["trusted_cas"]
+trusted_cas = ["webpki-roots"]
+
 [dependencies]
 lan_clipboard = { path = "../" }
 protobuf = "1.4"
@@ -22,6 +26,7 @@ snap = "0.2"
 rand = "0.3"
 log = "0.3"
 fern = "0.4"
+webpki-roots = { version = "0.13", optional = true }
 
 [target."cfg(not(windows))".dependencies]
 daemonize = "0.2"
